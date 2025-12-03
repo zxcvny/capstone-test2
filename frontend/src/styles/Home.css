@@ -1,0 +1,61 @@
+.home-container {
+    padding: 20px;
+}
+
+.filter-group {
+    margin-bottom: 15px;
+}
+
+.filter-group button {
+    margin-right: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.filter-group button.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.status-bar {
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.stock-list table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.stock-list th, 
+.stock-list td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+.stock-list th {
+    background-color: #f4f4f4;
+}
+
+.flash-update {
+    animation: flash 1s;
+    color: #d9534f;
+    font-weight: bold;
+}
+
+.no-data {
+    margin-top: 20px;
+    text-align: center;
+    color: #666;
+}
+
+@keyframes flash {
+    0% { background-color: rgba(0, 123, 255, 0.2); }
+    100% { background-color: transparent; }
+}

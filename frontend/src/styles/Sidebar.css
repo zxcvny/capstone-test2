@@ -1,0 +1,127 @@
+/* src/styles/Sidebar.css */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  background-color: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+  transition: width var(--transition-speed) ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+}
+
+.sidebar.open {
+  width: var(--sidebar-width-open);
+}
+
+.sidebar.closed {
+  width: var(--sidebar-width-closed);
+}
+
+/* 토글 버튼 */
+.sidebar-toggle-btn {
+  width: 100%;
+  height: var(--header-height); /* 72px */
+  background-color: transparent;
+  
+  border: none;
+  /* border-bottom 제거됨: 구분선 삭제 */
+  
+  color: var(--color-text-muted);
+  cursor: pointer;
+  
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* 왼쪽 정렬 */
+  padding: 0;
+  
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-primary);
+}
+
+/* 아이콘 래퍼: 닫힌 너비 80px 고정 */
+.tb-icon-wrapper {
+  width: var(--sidebar-width-closed); /* 80px 고정 */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 80px 내에서 중앙 정렬 */
+  font-size: 22px;
+  flex-shrink: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tb-icon-wrapper.rotated {
+  transform: rotate(180deg);
+}
+
+/* 메뉴 리스트 */
+.sidebar-menu {
+  list-style: none;
+  margin-top: 20px;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-menu li {
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.sidebar-menu a {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 52px;
+  margin: 0 10px;
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  transition: all 0.2s;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+}
+
+.sidebar-menu a:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-main);
+}
+
+.sidebar-menu a.active {
+  background-color: rgba(226, 123, 88, 0.15);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* 메뉴 아이콘 고정 너비 계산:
+   80px(닫힌 폭) - 20px(a태그 좌우 마진 10px*2) = 60px
+*/
+.menu-icon {
+  width: 60px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.menu-text {
+  font-size: 15px;
+  opacity: 1;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.sidebar.closed .menu-text {
+  opacity: 0;
+  display: none;
+}
