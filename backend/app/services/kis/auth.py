@@ -14,6 +14,7 @@ class KISAuth:
     def __init__(self):
         self.access_token = None
         self.approval_key = None # 웹소켓용 키
+        self.ws_aes_key = None # 웹소켓 복호화용 AES 키
         self.base_url = settings.KIS_BASE_URL
 
     async def _load_token_from_db(self, session: AsyncSession, token_name: str):
@@ -94,6 +95,7 @@ class KISAuth:
             if token_value and expires_at > now:
                 logger.info("🔑 유효한 Approval Key가 존재하여 재사용합니다.")
                 self.approval_key = token_value
+                self.ws_aes_key = self.approval_key[:32]
                 return self.approval_key
             
             logger.info("🔑 DB에 approval_key가 없거나 만료됨. KIS에서 새로 발급합니다.")
@@ -112,6 +114,8 @@ class KISAuth:
                 result = response.json()
 
             self.approval_key = result["approval_key"]
+            self.ws_aes_key = self.approval_key[:32]
+            
             expires_in_seconds = 24 * 3600
             expires_dt = now + timedelta(seconds=expires_in_seconds)
 

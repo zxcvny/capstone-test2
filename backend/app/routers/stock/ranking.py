@@ -19,19 +19,37 @@ def slice_output(data: dict, limit: int = LIMIT):
 @router.get("/{market}/volume")
 async def get_volume_rank(market: str, excd: str = Query("NAS", description="해외거래소코드")):
     """거래량 순위 (market: domestic / overseas / all)"""
-    data = await volume_service.get_combined(market, excd)
+    if market == "domestic":
+        data = await volume_service.get_domestic()
+    elif market == "overseas":
+        data = await volume_service.get_overseas(excd)
+    else:
+        data = await volume_service.get_combined(excd)
+
     return slice_output(data)
 
 @router.get("/{market}/amount")
 async def get_amount_rank(market: str, excd: str = Query("NAS")):
     """거래대금 순위 (market: domestic / overseas / all)"""
-    data = await amount_service.get_combined(market, excd)
+    if market == "domestic":
+        data = await amount_service.get_domestic()
+    elif market == "overseas":
+        data = await amount_service.get_overseas(excd)
+    else:
+        data = await amount_service.get_combined(excd)
+
     return slice_output(data)
 
 @router.get("/{market}/market-cap")
 async def get_market_cap_rank(market: str, excd: str = Query("NAS")):
     """시가총액 순위 (market: domestic / overseas / all)"""
-    data = await mkt_cap_service.get_combined(market, excd)
+    if market == "domestic":
+        data = await mkt_cap_service.get_domestic()
+    elif market == "overseas":
+        data = await mkt_cap_service.get_overseas(excd)
+    else:
+        data = await mkt_cap_service.get_combined(excd)
+
     return slice_output(data)
 
 @router.get("/{market}/fluctuation/{direction}")
@@ -40,5 +58,11 @@ async def get_fluctuation_rank(market: str, direction: str, excd: str = Query("N
     급상승/급하락 순위
     direction: rising (급상승), falling (급하락)
     """
-    data = await fluct_service.get_combined(market, excd, direction)
+    if market == "domestic":
+        data = await fluct_service.get_domestic(type=direction)
+    elif market == "overseas":
+        data = await fluct_service.get_overseas(excd=excd, type=direction)
+    else:
+        data = await fluct_service.get_combined(excd=excd, type=direction)
+
     return slice_output(data)

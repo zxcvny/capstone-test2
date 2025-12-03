@@ -25,9 +25,26 @@ class VolumeRankingService(RankingBaseService):
             "FID_VOL_CNT": "",
             "FID_INPUT_DATE_1": ""
         }
-        return await self.fetch_api(domestic_url, domestic_tr_id, params)
+        data = await self.fetch_api(domestic_url, domestic_tr_id, params)
+
+        normalized = []
+        for item in data.get('output', []):
+            normalized.append({
+                "code": item.get('mksc_shrn_iscd'),
+                "name": item.get('hts_kor_isnm'),
+                "price": float(item.get('stck_prpr', 0)),
+                "rate": float(item.get('prdy_ctrt', 0)),
+                "volume": float(item.get('acml_vol', 0)),        # 거래량
+                "amount": float(item.get('acml_tr_pbmn', 0)),    # 거래대금 (원화)
+                "value": float(item.get('acml_vol', 0)),         # 정렬 기준 (거래량)
+                "market": "domestic"
+            })
+        return {"output": normalized}
 
     async def get_overseas(self, nday="0", excd="NAS"):
+        # 환율 조회
+        exchange_rate = await self.get_exchange_rate()
+
         params = {
             "KEYB": "",
             "AUTH": "",
@@ -44,52 +61,35 @@ class VolumeRankingService(RankingBaseService):
             params["NDAY"] = "1"
             data = await self.fetch_api(overseas_url, overseas_tr_id, params)
 
-        return data
+        normalized = []
+        for item in data.get('output2', []):
+            price_usd = float(item.get('last', 0))
+            amount_usd = float(item.get('tamt', 0))
+            
+            normalized.append({
+                "code": item.get('rsym'),
+                "symb": item.get('symb'),
+                "name": item.get('name'),
+                "price": price_usd * exchange_rate,      # 현재가 (원화 환산)
+                "rate": float(item.get('rate', 0)),
+                "volume": float(item.get('tvol', 0)),    # 거래량
+                "amount": amount_usd * exchange_rate,    # 거래대금 (원화 환산)
+                "value": float(item.get('tvol', 0)),     # 정렬 기준 (거래량)
+                "market": "overseas"
+            })
+        return {"output": normalized}
     
-    async def get_combined(self, market_type="all", excd="NAS"):
-        dom_task = None
-        ovs_task = None
-
-        if market_type in ["domestic", "all"]:
-            dom_task = asyncio.create_task(self.get_domestic())
+    async def get_combined(self, excd="NAS"):
+        dom_task = self.get_domestic()
+        ovs_task = self.get_overseas(excd)
         
-        if market_type in ["overseas", "all"]:
-            ovs_task = asyncio.create_task(self.get_overseas(excd=excd))
-        
-        dom_res = await dom_task if dom_task else {}
-        ovs_res = await ovs_task if ovs_task else {}
+        # 병렬 실행
+        dom_res, ovs_res = await asyncio.gather(dom_task, ovs_task)
         
         combined = []
+        combined.extend(dom_res.get('output', []))
+        combined.extend(ovs_res.get('output', []))
 
-        # 국내 데이터 매핑
-        if dom_res and 'output' in dom_res:
-            for item in dom_res.get('output', []):
-                vol = float(item.get('acml_vol', 0))
-                combined.append({
-                    "market": "domestic",
-                    "code": item.get('mksc_shrn_iscd'),  # 단축코드
-                    "symb": item.get('mksc_shrn_iscd'),  # 심볼 (국내는 코드와 동일하게 처리)
-                    "name": item.get('hts_kor_isnm'),
-                    "price": item.get('stck_prpr'),
-                    "rate": item.get('prdy_ctrt'),
-                    "value": vol
-                })
-
-        # 해외 데이터 매핑
-        if ovs_res and 'output2' in ovs_res:
-            for item in ovs_res.get('output2', []):
-                vol = float(item.get('tvol', 0))
-                combined.append({
-                    "market": "overseas",
-                    "code": item.get('rsym'),            # 풀코드 (DNASAAPL 등)
-                    "symb": item.get('symb'),            # 심볼 (AAPL)
-                    "name": item.get('name'),
-                    "price": item.get('last'),
-                    "rate": item.get('rate'),
-                    "value": vol
-                })
-
-        # 거래량 내림차순 정렬
         combined.sort(key=lambda x: x['value'], reverse=True)
         return {"output": combined}
 
