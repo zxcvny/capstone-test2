@@ -46,36 +46,50 @@ class VolumeRankingService(RankingBaseService):
 
         return data
     
-    async def get_combined(self, excd="NAS"):
-        dom_task = self.get_domestic()
-        ovs_task = self.get_overseas(excd)
-        dom_res, ovs_res = await asyncio.gather(dom_task, ovs_task)
+    async def get_combined(self, market_type="all", excd="NAS"):
+        dom_task = None
+        ovs_task = None
+
+        if market_type in ["domestic", "all"]:
+            dom_task = asyncio.create_task(self.get_domestic())
+        
+        if market_type in ["overseas", "all"]:
+            ovs_task = asyncio.create_task(self.get_overseas(excd=excd))
+        
+        dom_res = await dom_task if dom_task else {}
+        ovs_res = await ovs_task if ovs_task else {}
         
         combined = []
 
-        for item in dom_res.get('output', []):
-            vol = float(item.get('acml_vol', 0))
-            combined.append({
-                "code": item.get('mksc_shrn_iscd'),
-                "name": item.get('hts_kor_isnm'),
-                "price": item.get('stck_prpr'),
-                "rate": item.get('prdy_ctrt'),
-                "value": vol,
-                "market": "domestic"
-            })
+        # 국내 데이터 매핑
+        if dom_res and 'output' in dom_res:
+            for item in dom_res.get('output', []):
+                vol = float(item.get('acml_vol', 0))
+                combined.append({
+                    "market": "domestic",
+                    "code": item.get('mksc_shrn_iscd'),  # 단축코드
+                    "symb": item.get('mksc_shrn_iscd'),  # 심볼 (국내는 코드와 동일하게 처리)
+                    "name": item.get('hts_kor_isnm'),
+                    "price": item.get('stck_prpr'),
+                    "rate": item.get('prdy_ctrt'),
+                    "value": vol
+                })
 
-        for item in ovs_res.get('output2', []):
-            vol = float(item.get('tvol', 0))
-            combined.append({
-                "code": item.get('rsym'),
-                "symb": item.get('symb'),
-                "name": item.get('name'),
-                "price": item.get('last'),
-                "rate": item.get('rate'),
-                "value": vol,
-                "market": "overseas"
-            })
+        # 해외 데이터 매핑
+        if ovs_res and 'output2' in ovs_res:
+            for item in ovs_res.get('output2', []):
+                vol = float(item.get('tvol', 0))
+                combined.append({
+                    "market": "overseas",
+                    "code": item.get('rsym'),            # 풀코드 (DNASAAPL 등)
+                    "symb": item.get('symb'),            # 심볼 (AAPL)
+                    "name": item.get('name'),
+                    "price": item.get('last'),
+                    "rate": item.get('rate'),
+                    "value": vol
+                })
 
+        # 거래량 내림차순 정렬
         combined.sort(key=lambda x: x['value'], reverse=True)
         return {"output": combined}
 
