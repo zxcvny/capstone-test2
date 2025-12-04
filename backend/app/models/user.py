@@ -18,7 +18,8 @@ class User(Base):
     
     social_accounts = relationship("SocialAccount", back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
-    # interest_stocks = relationship("UserStock", back_populates="user", cascade="all, delete-orphan")
+    user_favorite = relationship("UserFavorite", back_populates="user", cascade="all, delete-orphan")
+    user_favorite_groups = relationship("UserFavoriteGroup", back_populates="user", cascade="all, delete-orphan")
 
     @property
     def is_social(self) -> bool:

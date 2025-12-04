@@ -171,11 +171,38 @@ class KisWebSocketManager:
                                 # [국내주식] H0STCNT0
                                 if tr_id == "H0STCNT0" and len(values) > 10:
                                     parsed = {
+                                        "type": "tick",
                                         "code": values[0], 
                                         "price": values[2], 
                                         "rate": values[5],
                                         "volume": values[13],
                                         "amount": values[14],
+                                        "date": values[33],
+                                        "open": values[7],
+                                        "high": values[8],
+                                        "low": values[9],
+                                        "diff": values[4],
+                                        "strength": values[18]
+                                    }
+
+                                elif tr_id == "H0STASP0" and len(values) > 10:
+                                    parsed = {
+                                        "type": "ask",
+                                        "code": values[0],
+                                        "time": values[1],
+                                        # 매도 호가 1~5 (ASKP1 ~ ASKP5)
+                                        "ask_price_1": values[3],
+                                        "ask_price_2": values[4],
+                                        "ask_price_3": values[5],
+                                        "ask_price_4": values[6],
+                                        "ask_price_5": values[7],
+                                        # 매수 호가 1~5 (BIDP1 ~ BIDP5)
+                                        "bid_price_1": values[13],
+                                        "bid_price_2": values[14],
+                                        "bid_price_3": values[15],
+                                        "bid_price_4": values[16],
+                                        "bid_price_5": values[17],
+                                        # 잔량 정보 등 필요한 데이터 추가 매핑
                                     }
                                 
                                 # [해외주식] HDFSCNT0 (환율 적용 추가!)
@@ -184,19 +211,43 @@ class KisWebSocketManager:
                                         # 현재가를 실수형으로 변환 후 환율 곱하기
                                         price_usd = float(values[11])
                                         price_krw = price_usd * self.exchange_rate
-
                                         amount_usd = float(values[21])
                                         amount_krw = amount_usd * self.exchange_rate
+                                        diff_usd = float(values[13])
+                                        diff_krw = diff_usd * self.exchange_rate
+                                        open_usd = float(values[8])
+                                        open_krw = open_usd * self.exchange_rate
+                                        high_usd = float(values[9])
+                                        high_krw = high_usd * self.exchange_rate
+                                        low_usd = float(values[10])
+                                        low_krw = low_usd * self.exchange_rate
                                         
                                         parsed = {
-                                            "code": values[0],
+                                            "type": "tick",
+                                            "code": values[1],
                                             "price": str(int(price_krw)), # 원화는 소수점 버림
                                             "rate": values[14],
                                             "volume": values[20],
-                                            "amount": str(int(amount_krw))
+                                            "amount": str(int(amount_krw)),
+                                            "date": values[6],
+                                            "open": str(int(open_krw)),
+                                            "high": str(int(high_krw)),
+                                            "low": str(int(low_krw)),
+                                            "diff": str(int(diff_krw)),
+                                            "strength": values[24]
                                         }
                                     except ValueError:
                                         pass
+                                
+                                elif tr_id == "HDFSASP0" and len(values) > 10:
+                                    parsed = {
+                                        "type": "ask",
+                                        "code": values[0],
+                                        "time": values[1],
+                                        "ask_price_1": values[11], # 해외 호가 포맷 확인 필요
+                                        "bid_price_1": values[13],
+                                        # ... 데이터 명세에 맞춰 매핑
+                                    }
 
                                 if parsed:
                                     await self.broadcast(parsed)

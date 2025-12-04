@@ -46,3 +46,5 @@ class RankingBaseService:
             except Exception as e:
                 logger.error(f"⛔ 환율 조회 실패: {e}")
                 return 1430.0 # 실패 시 기본값
+            
+ranking_base_service = RankingBaseService()

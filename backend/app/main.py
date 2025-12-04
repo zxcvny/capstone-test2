@@ -3,9 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.lifespan import lifespan
-from routers import user_profile
+from routers import user_profile, user_favorite_group
 from routers.auth import user_general, user_social, token
-from routers.stock import ranking, realtime
+from routers.stock import ranking, realtime, info, ai
 
 app = FastAPI(lifespan=lifespan)
 
@@ -24,6 +24,9 @@ app.include_router(user_profile.router)
 app.include_router(token.router)
 app.include_router(ranking.router)
 app.include_router(realtime.router)
+app.include_router(info.router)
+app.include_router(ai.router)
+app.include_router(user_favorite_group.router)
 
 @app.get("/")
 def read_root():

@@ -5,6 +5,7 @@ import Home from './pages/sidebar/Home'
 import LoginPage from './pages/auth/LoginPage'
 import SignUpPage from './pages/auth/SignUpPage'
 import SocialCallbackPage from './pages/auth/SocialCallbackPage'
+import MyFavorite from './pages/sidebar/MyFavorite'
 import MyInfo from './pages/sidebar/MyInfo'
 import StockDetailPage from './pages/StockDetailPage'
 
@@ -15,6 +16,7 @@ function App() {
       <Routes>
         <Route path='/' element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path='/myfavorite' element={<MyFavorite />} />
           <Route path='/myinfo' element={<MyInfo />} />
           <Route path='/stock/:market/:stockId' element={<StockDetailPage />} />
         </Route>

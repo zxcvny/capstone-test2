@@ -6,7 +6,6 @@ from services.kis.websocket import kis_ws_manager
 router = APIRouter(prefix="/stocks/ws", tags=["Stocks WebSocket"])
 logger = logging.getLogger(__name__)
 
-# ... (is_korea_market_open, detect_tr_id 등 기존 함수는 그대로 둡니다) ...
 def is_korea_market_open():
     now = datetime.datetime.now()
     if now.hour < 9: return False
@@ -24,11 +23,21 @@ def check_market_open(item):
         return is_korea_market_open()
     return is_us_market_open()
 
-DOMESTIC_TR_ID = "H0STCNT0"
-OVERSEAS_TR_ID = "HDFSCNT0"
+DOMESTIC_TICK_TR_ID = "H0STCNT0"   # 국내 체결
+DOMESTIC_ASK_TR_ID = "H0STASP0"    # 국내 호가
 
-def detect_tr_id(market: str):
-    return DOMESTIC_TR_ID if market == "domestic" else OVERSEAS_TR_ID
+OVERSEAS_TICK_TR_ID = "HDFSCNT0"   # 해외 체결
+OVERSEAS_ASK_TR_ID = "HDFSASP0"    # 해외 호가 (미국 기준)
+
+def detect_tr_id(market: str, data_type: str = "tick"):
+    """
+    market: domestic(국내) / overseas(해외)
+    data_type: tick(체결가) / ask(호가)
+    """
+    if market == "domestic":
+        return DOMESTIC_ASK_TR_ID if data_type == "ask" else DOMESTIC_TICK_TR_ID
+    else:
+        return OVERSEAS_ASK_TR_ID if data_type == "ask" else OVERSEAS_TICK_TR_ID
 
 # ---- websocket ----
 @router.websocket("/realtime")
@@ -43,9 +52,10 @@ async def ws_realtime(websocket: WebSocket):
         subscribe_list = []
         for i in items:
             market_type = i.get("market", "domestic")
+            data_type = i.get("type", "tick") # 기본값은 체결(tick)
             code = i.get("code")
             
-            tr_id = detect_tr_id(market_type)
+            tr_id = detect_tr_id(market_type, data_type)
             tr_key = code
 
             if market_type == "overseas":
