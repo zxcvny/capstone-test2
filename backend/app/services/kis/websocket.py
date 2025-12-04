@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import websockets
+import httpx # 환율 조회를 위해 추가
 from core.config import settings
 from core.decryption import aes_cbc_base64_dec
 from services.kis.auth import kis_auth
@@ -17,6 +18,18 @@ class KisWebSocketManager:
         
         self.clients = set()
         self.running_task = None
+        self.exchange_rate = 1430.0 # 기본 환율 (실패 시 대비)
+
+    # [추가] 환율 업데이트 함수
+    async def update_exchange_rate(self):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get("https://open.er-api.com/v6/latest/USD")
+                data = response.json()
+                self.exchange_rate = data['rates']['KRW']
+                logger.info(f"💱 Updated Exchange Rate: {self.exchange_rate} KRW/USD")
+        except Exception as e:
+            logger.error(f"Failed to fetch exchange rate: {e}")
 
     async def connect(self):
         if self.websocket is None:
@@ -45,6 +58,9 @@ class KisWebSocketManager:
 
     async def subscribe_items(self, items):
         await self.connect()
+        
+        # [추가] 구독할 때 환율도 최신으로 갱신
+        await self.update_exchange_rate()
 
         if not self.approval_key:
             self.approval_key = await kis_auth.get_approval_key()
@@ -132,81 +148,68 @@ class KisWebSocketManager:
                 try:
                     msg = await self.websocket.recv()
                     
+                    data = None
                     try:
                         data = json.loads(msg)
                     except json.JSONDecodeError:
-                        continue 
+                        pass 
                     
-                    # 1. 실시간 데이터 (iv와 body가 존재)
-                    iv = data.get("iv")
-                    body = data.get("body")
-
-                    if iv and body:
-                        key = getattr(kis_auth, 'ws_aes_key', None)
-                        if key:
-                            try:
-                                decrypted = aes_cbc_base64_dec(key, iv, body)
-                                
-                                # [핵심] JSON 파싱 시도 후 실패하면 텍스트 데이터 파싱
-                                try:
-                                    parsed = json.loads(decrypted)
-                                except json.JSONDecodeError:
-                                    # KIS 실시간 데이터는 '^' 또는 '|'로 구분된 텍스트일 수 있음
-                                    values = decrypted.split('^')
-                                    
-                                    # 데이터 포맷을 JSON 객체로 변환하여 프론트엔드 포맷 맞춤
-                                    if len(values) > 5:
-                                        parsed = {
-                                            # 공통: 0번째는 항상 종목코드(Full Code)
-                                            "mksc_shrn_iscd": values[0], 
-                                            "rsym": values[0], 
-                                            
-                                            # 국내주식(H0STCNT0): 2(현재가), 5(등락률)
-                                            # 해외주식(HDFSCNT0): 11(현재가), 14(등락률) - (시장별로 다를 수 있어 안전하게 처리)
-                                            "stck_prpr": values[2] if len(values) > 2 else "0",
-                                            "prdy_ctrt": values[5] if len(values) > 5 else "0",
-                                            
-                                            # 해외주식용 필드 (가정)
-                                            "last": values[11] if len(values) > 11 else values[2],
-                                            "rate": values[14] if len(values) > 14 else values[5],
-                                        }
-                                    else:
-                                        # 파싱 불가능한 경우 원본 전송
-                                        parsed = {"type": "raw", "data": decrypted}
-
-                                await self.broadcast(parsed)
-                            except Exception as e:
-                                logger.error(f"Decryption/Parsing failed: {e}")
+                    if data and "iv" in data and "body" in data:
+                        pass
+                    elif data and "header" in data:
+                        pass # 시스템 메시지 로그 생략
                     else:
-                        # 2. 시스템 메시지 (구독/해제 응답)
-                        res_body = data.get('body', {})
-                        msg_cd = res_body.get('msg_cd', '')
+                        if isinstance(msg, str) and '|' in msg:
+                            parts = msg.split('|')
+                            if len(parts) >= 4:
+                                tr_id = parts[1]
+                                raw_data = parts[3]
+                                values = raw_data.split('^')
+                                
+                                parsed = None
 
-                        if msg_cd.startswith('OPSP'):
-                            if msg_cd == 'OPSP0000':
-                                logger.info(f"KIS WS: Subscribe Success")
-                            elif msg_cd == 'OPSP0001':
-                                logger.info(f"KIS WS: Unsubscribe Success")
-                            elif msg_cd == 'OPSP0002':
-                                logger.debug(f"KIS WS: Already Subscribed")
-                            elif msg_cd == 'OPSP0003':
-                                logger.debug(f"KIS WS: Target Not Found")
-                            else:
-                                logger.error(f"KIS WS Error: {data}")
-                        else:
-                            logger.info(f"System Msg: {data}")
+                                # [국내주식] H0STCNT0
+                                if tr_id == "H0STCNT0" and len(values) > 10:
+                                    parsed = {
+                                        "code": values[0], 
+                                        "price": values[2], 
+                                        "rate": values[5],
+                                        "volume": values[13],
+                                        "amount": values[14],
+                                    }
+                                
+                                # [해외주식] HDFSCNT0 (환율 적용 추가!)
+                                elif tr_id == "HDFSCNT0" and len(values) > 21:
+                                    try:
+                                        # 현재가를 실수형으로 변환 후 환율 곱하기
+                                        price_usd = float(values[11])
+                                        price_krw = price_usd * self.exchange_rate
+
+                                        amount_usd = float(values[21])
+                                        amount_krw = amount_usd * self.exchange_rate
+                                        
+                                        parsed = {
+                                            "code": values[0],
+                                            "price": str(int(price_krw)), # 원화는 소수점 버림
+                                            "rate": values[14],
+                                            "volume": values[20],
+                                            "amount": str(int(amount_krw))
+                                        }
+                                    except ValueError:
+                                        pass
+
+                                if parsed:
+                                    await self.broadcast(parsed)
 
                 except websockets.exceptions.ConnectionClosed:
-                    logger.warning("KIS WebSocket connection closed (inner).")
                     break
-                except Exception as e:
-                    logger.error(f"Message processing error: {e}")
+                except Exception:
+                    pass
 
-        except Exception as e:
-            logger.warning(f"Read loop stopped: {e}")
+        except Exception:
+            pass
         
         finally:
-            logger.info("Cleaning up WebSocket connection state.")
             self.websocket = None
             self.running_task = None
             self.subscribed = []

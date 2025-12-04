@@ -6,6 +6,7 @@ import LoginPage from './pages/auth/LoginPage'
 import SignUpPage from './pages/auth/SignUpPage'
 import SocialCallbackPage from './pages/auth/SocialCallbackPage'
 import MyInfo from './pages/sidebar/MyInfo'
+import StockDetailPage from './pages/StockDetailPage'
 
 function App() {
 
@@ -15,6 +16,7 @@ function App() {
         <Route path='/' element={<Layout />}>
           <Route index element={<Home />} />
           <Route path='/myinfo' element={<MyInfo />} />
+          <Route path='/stock/:market/:stockId' element={<StockDetailPage />} />
         </Route>
         <Route path='/login' element={<LoginPage />} />
         <Route path='/signup' element={<SignUpPage />} />
