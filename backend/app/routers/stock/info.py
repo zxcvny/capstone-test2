@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
 from services.kis.stock_info import stock_info_service
+from services.kis.data import kis_data
 
 router = APIRouter(prefix="/stocks", tags=["Stocks Info"])
 
@@ -46,4 +47,24 @@ async def read_overseas_stock_conclusion(
     if result is None:
         raise HTTPException(status_code=404, detail="Data not found or API error")
     
+    return result
+
+@router.get("/chart")
+async def get_stock_chart(
+    code: str,
+    market: str = Query(..., description="'domestic' or 'overseas'"),
+    period: str = Query("D", description="D(일), W(주), M(월)")
+):
+    """
+    주식 차트 데이터를 조회합니다.
+    """
+    # market 값이 'domestic'/'overseas'로 들어오면 KR/NAS 등으로 변환
+    target_market = "KR" if market == "domestic" else "NAS"
+    
+    # KIS 서비스 호출
+    result = await kis_data.get_stock_chart(target_market, code, period)
+    
+    if not result:
+        return []
+        
     return result

@@ -80,13 +80,12 @@
     align-items: start;
 }
 
-/* [수정] overflow: hidden 제거 -> visible로 변경하여 툴팁 잘림 방지 */
 .chart-card, .orderbook-card, .order-form-card, .trade-list-panel, .dashboard-stats-card {
     background-color: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    overflow: visible; /* hidden에서 변경됨 */
-    position: relative; /* z-index 컨텍스트 생성 */
+    overflow: visible;
+    position: relative;
 }
 
 .card-header-sm {
@@ -96,7 +95,6 @@
     justify-content: space-between;
     align-items: center;
     background-color: rgba(255, 255, 255, 0.02);
-    /* 상단 radius 적용을 위해 border-radius 추가 (overflow:visible 이라 자식요소가 삐져나올 수 있음) */
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
 }
@@ -106,12 +104,65 @@
 .col-chart-section { display: flex; flex-direction: column; gap: 16px; }
 
 /* 1. Chart */
-.chart-card { min-height: 400px; display: flex; flex-direction: column; }
-.chart-body-placeholder {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    color: var(--color-text-muted); font-size: 18px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
+.chart-card { min-height: 420px; display: flex; flex-direction: column; }
+
+/* [추가] 차트 컨트롤러 (분봉 셀렉트 + 버튼) 스타일 */
+.chart-container:hover {
+    cursor: crosshair !important;
 }
+
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chart-type-toggle {
+    display: flex;
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    padding: 2px;
+    margin-right: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.chart-type-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.chart-type-toggle button.active {
+    background-color: var(--color-primary);
+    color: white;
+    font-weight: 600;
+}
+
+/* [추가] 분봉 선택 셀렉트 박스 */
+.chart-select {
+    background-color: transparent;
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.chart-select:hover {
+    border-color: var(--color-primary);
+}
+.chart-select option {
+    background-color: #1e222d; /* 다크 모드 배경 */
+    color: #d1d4dc;
+}
+
 .chart-tabs button { background: none; border: none; color: var(--color-text-muted); padding: 4px 8px; cursor: pointer; font-size: 13px; }
 .chart-tabs button.active { color: var(--color-primary); font-weight: 700; }
 
@@ -122,7 +173,7 @@
 
 .trade-table-header {
     display: grid; 
-    grid-template-columns: 0.7fr 1fr 0.9fr 0.9fr 1.1fr; /* 4개 -> 5개로 수정 */
+    grid-template-columns: 0.7fr 1fr 0.9fr 0.9fr 1.1fr;
     padding: 8px 12px; font-size: 12px; color: var(--color-text-muted);
     border-bottom: 1px solid var(--color-border); text-align: right;
 }
@@ -130,13 +181,12 @@
 .trade-list-scroll { 
     flex: 1; 
     overflow-y: auto; 
-    /* 하단 radius 적용 */
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
 }
 .trade-row {
     display: grid; 
-    grid-template-columns: 0.7fr 1fr 0.9fr 0.9fr 1.1fr; /* 4개 -> 5개로 수정 */
+    grid-template-columns: 0.7fr 1fr 0.9fr 0.9fr 1.1fr;
     padding: 6px 12px; font-size: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.02);
     text-align: right;
 }
@@ -173,7 +223,7 @@
     background-color: rgba(255, 255, 255, 0.02);
     padding: 10px;
     border-radius: 8px;
-    position: relative; /* 툴팁 기준점 */
+    position: relative;
 }
 
 .stat-box .label { font-size: 12px; color: var(--color-text-muted); }
@@ -184,10 +234,10 @@
 .strength-badge { font-size: 13px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); }
 .strength-badge.up { color: #ff4d4d; }
 .strength-badge.down { color: #4d88ff; }
-.ob-list { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; } /* 내부 리스트만 hidden */
+.ob-list { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
 .ob-item { 
     display: grid; 
-    grid-template-columns: 1fr 1.2fr 1fr; /* 잔량 | 호가 | 잔량 비율 */
+    grid-template-columns: 1fr 1.2fr 1fr;
     height: 38px; 
     align-items: center; 
     font-size: 14px;
@@ -195,7 +245,7 @@
 }
 .ob-item.ask { background-color: rgba(77, 136, 255, 0.06); }
 .ob-item.bid { background-color: rgba(255, 77, 77, 0.06); }
-/* 구역별 스타일 */
+
 .ob-left, .ob-right {
     position: relative;
     height: 100%;
@@ -205,9 +255,7 @@
     z-index: 1;
 }
 
-/* 왼쪽 (매도잔량): 우측 정렬 */
 .ob-left { justify-content: flex-end; }
-/* 오른쪽 (매수잔량): 좌측 정렬 */
 .ob-right { justify-content: flex-start; }
 
 .ob-vol-text {
@@ -217,7 +265,6 @@
     font-weight: 500;
 }
 
-/* 중앙 (호가) */
 .ob-center {
     display: flex;
     align-items: center;
@@ -232,17 +279,8 @@
 .ob-item.ask .ob-center { color: #4d88ff; }
 .ob-item.bid .ob-center { color: #ff4d4d; }
 .ob-price { font-weight: 600; font-size: 14px; z-index: 1; }
-.ob-amt { font-size: 12px; color: var(--color-text-muted); position: relative; width: 50%; text-align: right; z-index: 1;}
-.bar { position: absolute; top: 2px; bottom: 2px; right: 0; opacity: 0.15; z-index: 0; }
-.bar { 
-    position: absolute; 
-    top: 4px; 
-    bottom: 4px; 
-    opacity: 0.15; 
-    z-index: 0; 
-}
+.bar { position: absolute; top: 4px; bottom: 4px; opacity: 0.15; z-index: 0; }
 
-/* 매도 바: 오른쪽에서 왼쪽으로 */
 .ask-bar { 
     right: 0; 
     background-color: #4d88ff; 
@@ -250,7 +288,6 @@
     border-bottom-left-radius: 4px;
 }
 
-/* 매수 바: 왼쪽에서 오른쪽으로 */
 .bid-bar { 
     left: 0; 
     background-color: #ff4d4d; 
@@ -258,7 +295,6 @@
     border-bottom-right-radius: 4px;
 }
 
-/* 현재가 라인 */
 .ob-current-line { 
     text-align: center; 
     padding: 8px 0; 
@@ -290,7 +326,7 @@
 .btn-submit-order:hover { opacity: 0.9; }
 .user-balance-info { margin-top: auto; font-size: 12px; color: var(--color-text-muted); background-color: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; }
 
-/* === [수정] Tooltip Styles === */
+/* === Tooltip Styles === */
 .term-tooltip-wrapper { position: relative; cursor: help; display: inline-flex; align-items: center; gap: 4px; }
 .tooltip-icon { font-size: 12px; color: var(--color-text-muted); transition: color 0.2s; }
 .term-tooltip-wrapper:hover .tooltip-icon { color: var(--color-primary); }
@@ -298,26 +334,20 @@
 .tooltip-content {
     visibility: hidden;
     opacity: 0;
-    
-    /* 너비 자동 조정 및 줄바꿈 허용 */
     width: max-content;
     max-width: 240px;
     white-space: normal;
-    word-break: keep-all; /* 한글 단어 단위 줄바꿈 */
-    
+    word-break: keep-all;
     background-color: rgba(0, 0, 0, 0.95);
     color: #fff;
     text-align: center;
     border-radius: 6px;
     padding: 10px;
-    
     position: absolute;
-    /* z-index 대폭 상향 */
     z-index: 10000;
-    bottom: 140%; /* 조금 더 위로 */
+    bottom: 140%;
     left: 50%;
     transform: translateX(-50%);
-    
     font-size: 12px;
     font-weight: 400;
     line-height: 1.5;
@@ -332,7 +362,6 @@
     opacity: 1;
 }
 
-/* 화살표 */
 .tooltip-content::after {
     content: "";
     position: absolute;
@@ -344,7 +373,6 @@
     border-color: rgba(0, 0, 0, 0.95) transparent transparent transparent;
 }
 
-/* [추가] 4번째 열(오른쪽 끝) 아이템의 툴팁 위치 조정 */
 .ratio-item:nth-child(4n) .tooltip-content,
 .stat-box:last-child .tooltip-content {
     left: auto;
@@ -352,7 +380,6 @@
     transform: none;
 }
 
-/* 4번째 열 아이템의 화살표 위치 조정 */
 .ratio-item:nth-child(4n) .tooltip-content::after,
 .stat-box:last-child .tooltip-content::after {
     left: auto;

@@ -63,8 +63,14 @@ function Header() {
         };
 
         return () => {
+            // [수정] 연결이 맺어진 상태(OPEN)거나 연결 중일 때 안전하게 닫기
             if (wsRef.current) {
-                wsRef.current.close();
+                if (wsRef.current.readyState === 1) { // OPEN
+                    wsRef.current.close();
+                } else {
+                    // 아직 연결 중이면 그냥 두거나, null 처리 (브라우저 오류 방지)
+                    wsRef.current = null; 
+                }
             }
         };
     }, []);
