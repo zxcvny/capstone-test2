@@ -1,26 +1,33 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaHeart, FaPlus, FaTrash, FaRobot, FaTimes, FaCaretUp, FaCaretDown, FaMinus, FaFolder, FaFolderOpen } from "react-icons/fa";
-import axios from '../../lib/axios';
-import { useAuth } from '../../context/AuthContext';
-import LoginRequired from '../../components/LoginRequired';
-import '../../styles/Home.css';
 import { motion } from "framer-motion";
+import axios from '../../lib/axios';
+import LoginRequired from '../../components/LoginRequired';
+
+import AIModal from "../../components/modals/AIModal";
+
+import { formatNumber, formatAmount, formatPrice, renderRate } from "../../utils/formatters"
+import { useAuth } from '../../context/AuthContext';
+import { useAI } from '../../hooks/useAI';
+
+import '../../styles/Home.css';
+import GroupCreateModal from '../../components/modals/GroupCreateModal';
+
 
 function MyFavorite() {
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    const { aiLoading, aiResult, isModalOpen, handleAiPredict, closeModal } = useAI();
+
     const [groups, setGroups] = useState([]);
     const [selectedGroupId, setSelectedGroupId] = useState(null);
     const [stocks, setStocks] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    
+    // [수정 1] 초기 로딩 상태를 false로 변경 (데이터가 없으면 로딩 없이 빈 화면 표시)
+    const [isLoading, setIsLoading] = useState(false);
     const ws = useRef(null);
-
-    // AI 모달 관련 상태
-    const [aiLoading, setAiLoading] = useState(false);
-    const [aiResult, setAiResult] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // [추가] 그룹 생성 모달 상태
     const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
@@ -49,15 +56,40 @@ function MyFavorite() {
         if (!user || !selectedGroupId) return;
         
         const fetchStocks = async () => {
-            setIsLoading(true);
+            // [수정 2] 무조건 로딩을 켜지 않고, 일단 데이터 목록부터 확인
             try {
                 const res = await axios.get('/users/me/favorites/stocks', {
                     params: { group_id: selectedGroupId }
                 });
+                const dbList = res.data;
+
+                // [수정 3] 목록이 없으면 로딩 없이 빈 배열 설정 후 종료
+                if (!dbList || dbList.length === 0) {
+                    setStocks([]);
+                    setIsLoading(false); // 혹시 모르니 꺼둠
+                    return;
+                }
+
+                // [수정 4] 데이터가 있을 때만 여기서부터 로딩 시작 (상세 정보 조회 시간 동안 표시)
+                setIsLoading(true);
+
+                const detailPromises = dbList.map(async (item) => {
+                    try {
+                        const detailRes = await axios.get('/stocks/detail', {
+                            params: {
+                                market: item.market,
+                                code: item.code,
+                                exchange: item.market === 'overseas' ? 'NAS' : ''
+                            }
+                        });
+                        return { ...item, ...detailRes.data };
+                    } catch (error) {
+                        console.error(`Failed to fetch detail for ${item.code}`, error);
+                        return item;
+                    }
+                })
                 
-                const initializedData = res.data.map(item => ({
-                    ...item, price: null, rate: 0, volume: 0, amount: 0
-                }));
+                const initializedData = await Promise.all(detailPromises);
                 setStocks(initializedData);
                 
                 if (initializedData.length > 0) connectWebSocket(initializedData);
@@ -72,21 +104,38 @@ function MyFavorite() {
 
     // WebSocket 연결 (기존과 동일)
     const connectWebSocket = (targetList) => {
-        if (ws.current) ws.current.close();
+        if (ws.current) {
+            ws.current.close();
+            ws.current = null;
+        }
         ws.current = new WebSocket('ws://localhost:8000/stocks/ws/realtime');
         ws.current.onopen = () => {
-            ws.current.send(JSON.stringify({ items: targetList.map(item => ({ code: item.code, market: item.market })) }));
+            ws.current.send(JSON.stringify({
+                items: targetList.map(item => ({
+                    code: item.code,
+                    market: item.market,
+                    type: "tick",
+                    excd: item.market === 'overseas' ? 'NAS' : ''
+                }))
+            }));
         };
         ws.current.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
                 if (msg.type !== 'realtime') return;
                 const d = msg.data;
+                if (d.type && d.type !== 'tick') return;
                 setStocks(prev => prev.map(item => {
                     if (item.code !== d.code) return item;
-                    return { ...item, price: d.price, rate: d.rate, volume: d.volume, amount: d.amount };
+                    return { 
+                        ...item, 
+                        price: d.price ? Number(d.price) : item.price, 
+                        rate: d.rate ? Number(d.rate) : item.rate, 
+                        volume: d.volume ? Number(d.volume) : item.volume, 
+                        amount: d.amount ? Number(d.amount) : item.amount 
+                    };
                 }));
-            } catch (e) {}
+            } catch (e) { console.error("WS Error:", e) }
         };
     };
 
@@ -127,35 +176,10 @@ function MyFavorite() {
         } catch (e) { console.error(e); }
     };
 
-    // AI 예측 및 포맷팅 (기존 코드 유지)
-    const handleAiPredict = async (item) => {
-        setAiLoading(true); setAiResult(null); setIsModalOpen(true);
-        try {
-            const mkt = item.market === 'domestic' ? 'KR' : 'NAS';
-            const res = await axios.get(`/stocks/ai/predict`, { params: { market: mkt, code: item.code } });
-            setAiResult(res.data);
-        } catch (error) { setAiResult({ error: "분석 실패" }); } 
-        finally { setAiLoading(false); }
+    const handleRowClick = (item) => {
+        const routeId = item.market === 'overseas' ? item.symb : item.code;
+        navigate(`/stock/${item.market}/${routeId}`, { state: { code: item.code, symb: item.symb, name: item.name, price: item.price, rate: item.rate } });
     };
-    const closeModal = () => { setIsModalOpen(false); setAiResult(null); };
-    
-    // 유틸리티
-    const formatNumber = (num) => (num ? Number(num).toLocaleString() : '-');
-    const formatAmount = (num) => {
-        if (!num) return '-';
-        const val = Number(num);
-        if (val >= 1_000_000_000_000) return `${(val / 1_000_000_000_000).toFixed(2)}조원`;
-        if (val >= 100_000_000) return `${(val / 100_000_000).toFixed(0)}억원`;
-        return `${Math.floor(val).toLocaleString()}원`;
-    };
-    const formatPrice = (num) => (num ? `${Math.floor(Number(num)).toLocaleString()}원` : '-');
-    const renderRate = (rate) => {
-        const val = Number(rate);
-        if (val > 0) return <span className="rate-cell text-up"><FaCaretUp /> {val}%</span>;
-        if (val < 0) return <span className="rate-cell text-down"><FaCaretDown /> {Math.abs(val)}%</span>;
-        return <span className="rate-cell text-flat"><FaMinus style={{ fontSize: '10px' }} /> 0.00%</span>;
-    };
-    const handleRowClick = (item) => navigate(`/stock/${item.market}/${item.code}`, { state: { code: item.code, name: item.name } });
 
     if (!user) return <LoginRequired />;
 
@@ -165,7 +189,6 @@ function MyFavorite() {
                 <h3 className="intro-title"><FaHeart style={{ color: '#ff4d4d', marginRight: '8px' }} />나의 관심 종목</h3>
             </div>
 
-            {/* [수정] 그룹 관리 바 (새 디자인 적용) */}
             <div className="favorite-group-bar">
                 <div className="group-list">
                     {groups.map(g => (
@@ -178,7 +201,6 @@ function MyFavorite() {
                             {g.name}
                         </button>
                     ))}
-                    {/* 그룹 추가 버튼 */}
                     <button 
                         className="group-icon-btn add" 
                         onClick={() => setIsCreateGroupModalOpen(true)} 
@@ -188,7 +210,6 @@ function MyFavorite() {
                     </button>
                 </div>
 
-                {/* 그룹 삭제 버튼 (그룹이 2개 이상이거나, 현재 그룹이 기본 그룹이 아닐 때 등 조건부 렌더링 가능) */}
                 {selectedGroupId && groups.length > 0 && (
                     <>
                         <div className="group-divider"></div>
@@ -203,7 +224,6 @@ function MyFavorite() {
                 )}
             </div>
 
-            {/* 테이블 (기존 유지) */}
             <div className="table-container">
                 <table className="ranking-table">
                     <thead>
@@ -212,32 +232,43 @@ function MyFavorite() {
                         </tr>
                     </thead>
                     <tbody>
-                        {stocks.length > 0 ? stocks.map((item, idx) => (
-                            <motion.tr layout transition={{ duration: 0.3 }} key={`${item.market}-${item.code}`} onClick={() => handleRowClick(item)}>
-                                <td className="col-rank">{idx + 1}</td>
-                                <td className="col-name">
-                                    <div className="stock-info">
-                                        <div className="stock-meta">
-                                            <span className={`market-badge ${item.market === 'domestic' ? 'domestic' : 'overseas'}`}>
-                                                {item.market === 'domestic' ? 'KOR' : 'USA'}
-                                            </span>
-                                            <span className="stock-code">{item.code}</span>
-                                        </div>
-                                        <span className="stock-name">{item.name}</span>
+                        {/* [수정 5] isLoading 상태일 때 로딩 UI 표시 */}
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan="8">
+                                    <div className="loading-state">
+                                        <span className="loading-icon">📡</span>데이터를 불러오는 중입니다...
                                     </div>
                                 </td>
-                                <td><div className="price-val">{formatPrice(item.price)}</div></td>
-                                <td>{renderRate(item.rate)}</td>
-                                <td className="price-val">{formatNumber(item.volume)}</td>
-                                <td className="price-val">{formatAmount(item.amount)}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                    <button className="favorite-btn" onClick={(e) => handleRemoveStock(e, item)}><FaHeart className="heart-icon filled" /></button>
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
-                                    <button className="ai-btn" onClick={(e) => { e.stopPropagation(); handleAiPredict(item); }}><FaRobot /></button>
-                                </td>
-                            </motion.tr>
-                        )) : (
+                            </tr>
+                        ) : stocks.length > 0 ? (
+                            stocks.map((item, idx) => (
+                                <motion.tr layout transition={{ duration: 0.3 }} key={`${item.market}-${item.code}`} onClick={() => handleRowClick(item)}>
+                                    <td className="col-rank">{idx + 1}</td>
+                                    <td className="col-name">
+                                        <div className="stock-info">
+                                            <div className="stock-meta">
+                                                <span className={`market-badge ${item.market === 'domestic' ? 'domestic' : 'overseas'}`}>
+                                                    {item.market === 'domestic' ? 'KOR' : 'USA'}
+                                                </span>
+                                                <span className="stock-code">{item.code}</span>
+                                            </div>
+                                            <span className="stock-name">{item.name}</span>
+                                        </div>
+                                    </td>
+                                    <td><div className="price-val">{formatPrice(item.price)}</div></td>
+                                    <td>{renderRate(item.rate)}</td>
+                                    <td className="price-val">{formatNumber(item.volume)}</td>
+                                    <td className="price-val">{formatAmount(item.amount)}</td>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button className="favorite-btn" onClick={(e) => handleRemoveStock(e, item)}><FaHeart className="heart-icon filled" /></button>
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button className="ai-btn" onClick={(e) => { e.stopPropagation(); handleAiPredict(item); }}><FaRobot /></button>
+                                    </td>
+                                </motion.tr>
+                            ))
+                        ) : (
                             <tr>
                                 <td colSpan="8">
                                     <div className="empty-state" style={{ padding: '60px 0', textAlign: 'center' }}>
@@ -252,55 +283,9 @@ function MyFavorite() {
                     </tbody>
                 </table>
             </div>
-
-            {/* AI 모달 */}
-            {isModalOpen && (
-                <div className="ai-modal-overlay" onClick={closeModal}>
-                    <div className="ai-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <button className="ai-close-btn" onClick={closeModal}><FaTimes /></button>
-                        <h3>🤖 AI 투자 분석</h3>
-                        {aiLoading ? (
-                            <div className="ai-loading"><div className="spinner"></div><p>차트 데이터를 분석 중입니다...</p></div>
-                        ) : aiResult && !aiResult.error ? (
-                            <div className="ai-result-box">
-                                <div className="ai-header"><span className="ai-code">{aiResult.code}</span><span className="ai-market">{aiResult.market}</span></div>
-                                <div className={`ai-signal signal-${aiResult.signal}`}>{aiResult.signal}</div>
-                                <div className="ai-probability">확률: <strong>{aiResult.probability}</strong></div>
-                                <div className="ai-prices">
-                                    <div className="price-item target"><span>목표가</span><strong>{formatNumber(aiResult.target_price)}원</strong></div>
-                                    <div className="price-item stoploss"><span>손절가</span><strong>{formatNumber(aiResult.stop_loss)}원</strong></div>
-                                </div>
-                                <p className="ai-desc">{aiResult.desc}</p>
-                            </div>
-                        ) : (
-                            <div className="ai-error"><p>⚠️ {aiResult?.error || "분석에 실패했습니다."}</p></div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* [추가] 그룹 생성 모달 */}
-            {isCreateGroupModalOpen && (
-                <div className="ai-modal-overlay" onClick={() => setIsCreateGroupModalOpen(false)}>
-                    <div className="ai-modal-content group-select-modal" onClick={(e) => e.stopPropagation()}>
-                        <button className="ai-close-btn" onClick={() => setIsCreateGroupModalOpen(false)}><FaTimes /></button>
-                        <h3 className="modal-title">새 그룹 만들기</h3>
-                        <p className="modal-desc">새로운 관심 그룹의 이름을 입력하세요.</p>
-                        <input 
-                            type="text" 
-                            className="modal-input" 
-                            placeholder="예: 반도체, 2차전지" 
-                            value={newGroupName}
-                            onChange={(e) => setNewGroupName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
-                            autoFocus
-                        />
-                        <div className="modal-btn-group">
-                            <button className="modal-confirm-btn" onClick={handleCreateGroup}>생성하기</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <AIModal isOpen={isModalOpen} closeModal={closeModal} aiLoading={aiLoading} aiResult={aiResult} />
+            <GroupCreateModal isOpen={isCreateGroupModalOpen} setIsCreateGroupModalOpen={setIsCreateGroupModalOpen} newGroupName={newGroupName} setNewGroupName={setNewGroupName} handleCreateGroup={handleCreateGroup} />
+            
         </div>
     );
 }

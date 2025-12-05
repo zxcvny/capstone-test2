@@ -60,7 +60,6 @@ class KISAuth:
             now = datetime.now(timezone.utc)
 
             if token_value and expires_at > now:
-                logger.info("🔑 유효한 Access Token이 존재하여 재사용합니다.")
                 self.access_token = token_value
                 return self.access_token
             
@@ -93,7 +92,6 @@ class KISAuth:
             now = datetime.now(timezone.utc)
 
             if token_value and expires_at > now:
-                logger.info("🔑 유효한 Approval Key가 존재하여 재사용합니다.")
                 self.approval_key = token_value
                 self.ws_aes_key = self.approval_key[:32]
                 return self.approval_key

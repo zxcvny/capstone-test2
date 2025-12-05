@@ -2,9 +2,8 @@ import asyncio
 import json
 import logging
 import websockets
-import httpx # 환율 조회를 위해 추가
+import httpx
 from core.config import settings
-from core.decryption import aes_cbc_base64_dec
 from services.kis.auth import kis_auth
 
 logger = logging.getLogger(__name__)
@@ -14,13 +13,12 @@ class KisWebSocketManager:
         self.url = settings.KIS_WS_URL
         self.approval_key = kis_auth.approval_key 
         self.websocket = None
-        self.subscribed = []
+        self.subscribed = []  # 현재 구독 중인 종목 목록
         
         self.clients = set()
         self.running_task = None
-        self.exchange_rate = 1430.0 # 기본 환율 (실패 시 대비)
+        self.exchange_rate = 1430.0
 
-    # [추가] 환율 업데이트 함수
     async def update_exchange_rate(self):
         try:
             async with httpx.AsyncClient() as client:
@@ -56,41 +54,24 @@ class KisWebSocketManager:
             if self.running_task:
                 self.running_task.cancel()
 
+    # [수정됨] 구독 목록을 "교체"하지 않고 "추가"하도록 변경
     async def subscribe_items(self, items):
         await self.connect()
-        
-        # [추가] 구독할 때 환율도 최신으로 갱신
-        await self.update_exchange_rate()
+        # await self.update_exchange_rate() # 너무 빈번한 호출 방지를 위해 필요시 주석 처리 혹은 캐싱 권장
 
         if not self.approval_key:
             self.approval_key = await kis_auth.get_approval_key()
 
+        # 현재 이미 구독 중인 키들의 집합
         current_keys = set((i['tr_id'], i['tr_key']) for i in self.subscribed)
-        new_keys = set((i['tr_id'], i['tr_key']) for i in items)
-
-        to_unsubscribe = [i for i in self.subscribed if (i['tr_id'], i['tr_key']) not in new_keys]
+        
+        # 요청 들어온 것들 중, 아직 구독하지 않은 것만 골라냄 (중복 구독 방지)
         to_subscribe = [i for i in items if (i['tr_id'], i['tr_key']) not in current_keys]
 
-        # 구독 해제
-        for item in to_unsubscribe:
-            req = {
-                "header": {
-                    "approval_key": self.approval_key,
-                    "custtype": "P",
-                    "tr_type": "2", 
-                    "content-type": "utf-8"
-                },
-                "body": {
-                    "input": {
-                        "tr_id": item["tr_id"],
-                        "tr_key": item["tr_key"]
-                    }
-                }
-            }
-            if self.websocket:
-                await self.websocket.send(json.dumps(req))
+        # [삭제됨] to_unsubscribe 로직 제거 
+        # (검색어 입력 시 상세페이지의 구독이 끊기는 문제 해결)
 
-        # 신규 구독
+        # 신규 종목 구독 요청 전송
         for item in to_subscribe:
             req = {
                 "header": {
@@ -108,9 +89,12 @@ class KisWebSocketManager:
             }
             if self.websocket:
                 await self.websocket.send(json.dumps(req))
+            
+            # [추가] 메모리 상의 리스트에도 추가
+            self.subscribed.append(item)
 
-        self.subscribed = items
-        logger.info(f"Updated subscriptions: Unsubscribed {len(to_unsubscribe)}, Subscribed {len(to_subscribe)}, Total {len(self.subscribed)}")
+        if to_subscribe:
+            logger.info(f"🔔 Added subscriptions: {len(to_subscribe)} items. Total: {len(self.subscribed)}")
 
     async def unsubscribe_all(self):
         if not self.websocket:
@@ -157,7 +141,7 @@ class KisWebSocketManager:
                     if data and "iv" in data and "body" in data:
                         pass
                     elif data and "header" in data:
-                        pass # 시스템 메시지 로그 생략
+                        pass 
                     else:
                         if isinstance(msg, str) and '|' in msg:
                             parts = msg.split('|')
@@ -168,7 +152,6 @@ class KisWebSocketManager:
                                 
                                 parsed = None
 
-                                # [국내주식] H0STCNT0
                                 if tr_id == "H0STCNT0" and len(values) > 10:
                                     parsed = {
                                         "type": "tick",
@@ -190,25 +173,20 @@ class KisWebSocketManager:
                                         "type": "ask",
                                         "code": values[0],
                                         "time": values[1],
-                                        # 매도 호가 1~5 (ASKP1 ~ ASKP5)
                                         "ask_price_1": values[3],
                                         "ask_price_2": values[4],
                                         "ask_price_3": values[5],
                                         "ask_price_4": values[6],
                                         "ask_price_5": values[7],
-                                        # 매수 호가 1~5 (BIDP1 ~ BIDP5)
                                         "bid_price_1": values[13],
                                         "bid_price_2": values[14],
                                         "bid_price_3": values[15],
                                         "bid_price_4": values[16],
                                         "bid_price_5": values[17],
-                                        # 잔량 정보 등 필요한 데이터 추가 매핑
                                     }
                                 
-                                # [해외주식] HDFSCNT0 (환율 적용 추가!)
                                 elif tr_id == "HDFSCNT0" and len(values) > 21:
                                     try:
-                                        # 현재가를 실수형으로 변환 후 환율 곱하기
                                         price_usd = float(values[11])
                                         price_krw = price_usd * self.exchange_rate
                                         amount_usd = float(values[21])
@@ -225,7 +203,7 @@ class KisWebSocketManager:
                                         parsed = {
                                             "type": "tick",
                                             "code": values[1],
-                                            "price": str(int(price_krw)), # 원화는 소수점 버림
+                                            "price": str(int(price_krw)),
                                             "rate": values[14],
                                             "volume": values[20],
                                             "amount": str(int(amount_krw)),
@@ -244,9 +222,8 @@ class KisWebSocketManager:
                                         "type": "ask",
                                         "code": values[0],
                                         "time": values[1],
-                                        "ask_price_1": values[11], # 해외 호가 포맷 확인 필요
+                                        "ask_price_1": values[11],
                                         "bid_price_1": values[13],
-                                        # ... 데이터 명세에 맞춰 매핑
                                     }
 
                                 if parsed:

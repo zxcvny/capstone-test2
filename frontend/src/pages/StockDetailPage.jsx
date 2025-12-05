@@ -1,7 +1,7 @@
 // src/pages/StockDetailPage.jsx
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { FaChartBar, FaInfoCircle } from "react-icons/fa"; // 화살표 아이콘 제거 (텍스트로 대체)
+import { FaChartBar, FaInfoCircle } from "react-icons/fa"; 
 import axios from "../lib/axios";
 import { formatNumber, formatPrice, formatAmount, getRateClass } from "../utils/formatters";
 import "../styles/StockDetailPage.css";
@@ -25,6 +25,10 @@ function StockDetailPage() {
 
     const ws = useRef(null);
 
+    useEffect(() => {
+        window.scrollTo(0, 0);  // 페이지 최상단으로 이동
+    }, [])
+
     // --- 데이터 로딩 및 웹소켓 (이전과 동일) ---
     useEffect(() => {
         const fetchStockDetail = async () => {
@@ -42,7 +46,7 @@ function StockDetailPage() {
                     setRealtimeData({
                         price: response.data.price,
                         diff: response.data.diff,
-                        rate: response.data.change_rate,
+                        rate: response.data.rate,
                         volume: response.data.volume,
                         amount: response.data.amount,
                         open: null, high: null, low: null, date: null, strength: null
@@ -76,6 +80,11 @@ function StockDetailPage() {
                 if (message.type !== 'realtime') return;
                 const data = message.data;
 
+                // [유지] 현재 보고 있는 종목 데이터가 아니면 무시
+                if (data.code !== realCode) {
+                     return;
+                }
+
                 if (data.type === 'tick') {
                     setRealtimeData(prev => ({ ...prev, ...data }));
                 } else if (data.type === 'ask') {
@@ -96,7 +105,7 @@ function StockDetailPage() {
 
     // --- 렌더링 변수 ---
     const currentPrice = realtimeData?.price || staticInfo?.price || 0;
-    const currentRate = realtimeData?.rate || staticInfo?.change_rate || 0;
+    const currentRate = realtimeData?.rate || staticInfo?.rate || 0;
     const currentDiff = realtimeData?.diff || staticInfo?.diff || 0;
     const rateClass = getRateClass(currentRate);
 
@@ -107,18 +116,12 @@ function StockDetailPage() {
 
     return (
         <div className="detail-wrapper">
-            {/* [이미지 디자인 적용된 헤더]
-               1행: 종목명 + 종목코드
-               2행: 현재가 | 지난 정규장보다 +변동폭 (등락률)
-            */}
             <div className="stock-header-new">
-                {/* 1행: 이름과 코드 */}
                 <div className="title-row">
                     <h1 className="stock-name-header">{stockName}</h1>
                     <span className="market-tag">{realCode}</span>
                 </div>
 
-                {/* 2행: 가격과 등락률 */}
                 <div className="price-row">
                     <span className={`main-price ${rateClass}`}>
                         {formatNumber(currentPrice)}<span className="unit">원</span>
@@ -136,9 +139,7 @@ function StockDetailPage() {
                 </div>
             </div>
 
-            {/* 메인 그리드 (이전과 동일) */}
             <div className="detail-grid">
-                {/* 왼쪽: 차트 및 정보 */}
                 <div className="left-column">
                     <div className="chart-card">
                         <div className="chart-header">
@@ -213,7 +214,6 @@ function StockDetailPage() {
                     </div>
                 </div>
 
-                {/* 오른쪽: 호가창 */}
                 <div className="right-column">
                     <div className="order-book-card">
                         <div className="order-book-header">

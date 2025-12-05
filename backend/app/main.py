@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.lifespan import lifespan
 from routers import user_profile, user_favorite_group
 from routers.auth import user_general, user_social, token
-from routers.stock import ranking, realtime, info, ai
+from routers.stock import ranking, realtime, info, ai, search
 
 app = FastAPI(lifespan=lifespan)
 
@@ -23,8 +23,9 @@ app.include_router(user_social.router)
 app.include_router(user_profile.router)
 app.include_router(token.router)
 app.include_router(ranking.router)
-app.include_router(realtime.router)
 app.include_router(info.router)
+app.include_router(search.router)
+app.include_router(realtime.router)
 app.include_router(ai.router)
 app.include_router(user_favorite_group.router)
 

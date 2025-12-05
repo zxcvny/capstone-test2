@@ -1,11 +1,16 @@
 import datetime
 import logging
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from services.kis.websocket import kis_ws_manager
+from services.kis.stock_search import stock_search_service
+from services.kis.stock_info import stock_info_service
 
 router = APIRouter(prefix="/stocks/ws", tags=["Stocks WebSocket"])
 logger = logging.getLogger(__name__)
 
+# --- Helper Functions (유지) ---
 def is_korea_market_open():
     now = datetime.datetime.now()
     if now.hour < 9: return False
@@ -23,101 +28,143 @@ def check_market_open(item):
         return is_korea_market_open()
     return is_us_market_open()
 
-DOMESTIC_TICK_TR_ID = "H0STCNT0"   # 국내 체결
-DOMESTIC_ASK_TR_ID = "H0STASP0"    # 국내 호가
-
-OVERSEAS_TICK_TR_ID = "HDFSCNT0"   # 해외 체결
-OVERSEAS_ASK_TR_ID = "HDFSASP0"    # 해외 호가 (미국 기준)
+DOMESTIC_TICK_TR_ID = "H0STCNT0"
+DOMESTIC_ASK_TR_ID = "H0STASP0"
+OVERSEAS_TICK_TR_ID = "HDFSCNT0"
+OVERSEAS_ASK_TR_ID = "HDFSASP0"
 
 def detect_tr_id(market: str, data_type: str = "tick"):
-    """
-    market: domestic(국내) / overseas(해외)
-    data_type: tick(체결가) / ask(호가)
-    """
     if market == "domestic":
         return DOMESTIC_ASK_TR_ID if data_type == "ask" else DOMESTIC_TICK_TR_ID
     else:
         return OVERSEAS_ASK_TR_ID if data_type == "ask" else OVERSEAS_TICK_TR_ID
 
-# ---- websocket ----
+def get_market_type(market_code: str):
+    if market_code in ["KOSPI", "KOSDAQ"]:
+        return "domestic"
+    return "overseas"
+
+# --- WebSocket Endpoint ---
 @router.websocket("/realtime")
 async def ws_realtime(websocket: WebSocket):
     await websocket.accept()
 
+    # 클라이언트로 데이터 전송 헬퍼
+    async def push_to_client(data):
+        try:
+            await websocket.send_json({ "type": "realtime", "data": data })
+        except Exception:
+            pass 
+
+    # 1. 연결 즉시 매니저에 등록
+    kis_ws_manager.add_client(push_to_client)
+
     try:
-        # 1. 프론트에서 구독할 목록 받기
-        init_msg = await websocket.receive_json()
-        items = init_msg.get("items", [])
-
-        subscribe_list = []
-        for i in items:
-            market_type = i.get("market", "domestic")
-            data_type = i.get("type", "tick") # 기본값은 체결(tick)
-            code = i.get("code")
+        while True:
+            # 2. 클라이언트 메시지 대기 (구독 요청 or 검색 요청)
+            msg = await websocket.receive_json()
             
-            tr_id = detect_tr_id(market_type, data_type)
-            tr_key = code
+            msg_type = msg.get("type", "subscribe") # 기본값은 구독으로 처리
 
-            if market_type == "overseas":
-                # [수정] 길이 체크를 8에서 5로 변경 (3글자, 1글자 종목도 커버)
-                # 예: DNASAGH (7글자)도 통과되도록 수정
-                if code and len(code) >= 5 and code[0] in ['D', 'R']:
-                    tr_key = code 
-                else:
-                    exch_code = i.get("excd", "NAS") 
-                    tr_key = f"D{exch_code}{code}"
+            # [CASE 1] 일반 구독 요청 (초기 진입 등)
+            if msg_type == "subscribe":
+                items = msg.get("items", [])
+                subscribe_list = []
+                
+                for i in items:
+                    market_type = i.get("market", "domestic")
+                    code = i.get("code")
+                    if not code: continue
 
-            subscribe_list.append({
-                "tr_id": tr_id,
-                "tr_key": tr_key
-            })
+                    tr_id = detect_tr_id(market_type, "tick")
+                    tr_key = code
 
-        # 2. 장 운영 시간 체크 무시 (개발 편의상 항상 True로 변경)
-        # any_open = any(check_market_open(i) for i in items) 
-        if True:  # <--- ✅ 무조건 연결 유지 (개발용)
-            
-            # 3. 클라이언트로 데이터를 쏴줄 콜백 함수 정의
-            async def push_to_client(data):
-                try:
-                    await websocket.send_json({ "type": "realtime", "data": data })
-                except Exception:
-                    pass 
+                    if market_type == "overseas":
+                        if len(code) >= 5 and code[0] in ['D', 'R']:
+                            tr_key = code 
+                        else:
+                            exch_code = i.get("excd", "NAS") 
+                            tr_key = f"D{exch_code}{code}"
 
-            # 4. 매니저에 나(클라이언트) 등록
-            kis_ws_manager.add_client(push_to_client)
+                    subscribe_list.append({"tr_id": tr_id, "tr_key": tr_key})
+                
+                if subscribe_list:
+                    await kis_ws_manager.subscribe_items(subscribe_list)
 
-            # 5. KIS 서버에 구독 요청
-            await kis_ws_manager.subscribe_items(subscribe_list)
+            # [CASE 2] 검색 요청 및 자동 구독
+            elif msg_type == "search":
+                keyword = msg.get("keyword")
+                if not keyword: continue
 
-            try:
-                # 6. 연결 유지 (클라이언트가 끊을 때까지 대기)
-                while True:
-                    # 클라이언트가 보내는 메시지는 없어도, 연결 유지를 위해 대기 필요
-                    await websocket.receive_text()
-            except WebSocketDisconnect:
-                logger.info("Client disconnected")
-            finally:
-                # 7. 연결 끊기면 목록에서 제거
-                kis_ws_manager.remove_client(push_to_client)
-                # (선택) 모든 유저가 나가면 구독 해제하려면 아래 주석 해제
-                # await kis_ws_manager.unsubscribe_all() 
-        
-        else:
-            # 장 마감 처리 (현재는 실행되지 않음)
-            closing_data = []
-            for item in items:
-                closing_data.append({
-                    "code": item["code"],
-                    "market": item["market"],
-                    "message": "market closed"
-                })
+                # (1) 검색 수행
+                candidates = stock_search_service.search_stocks(keyword, limit=20)
+                if not candidates:
+                    await websocket.send_json({ "type": "search_result", "data": [] })
+                    continue
 
-            await websocket.send_json({ "type": "closed", "data": closing_data })
-            await websocket.close()
+                # (2) 현재가 병렬 조회
+                tasks = []
+                domestic_markets = ["KOSPI", "KOSDAQ"]
+                for stock in candidates:
+                    if stock['market'] in domestic_markets:
+                        tasks.append(stock_info_service._get_domestic_stock(stock['code']))
+                    else:
+                        tasks.append(stock_info_service._get_overseas_stock(stock['code'], exchange=stock['market']))
+                
+                prices = await asyncio.gather(*tasks)
 
+                # (3) 결과 포맷팅 & 구독 리스트 준비
+                results = []
+                new_subs = []
+
+                for stock, price_data in zip(candidates, prices):
+                    m_code = stock['market']
+                    m_type = get_market_type(m_code)
+                    m_label = "국내" if m_type == "domestic" else "해외"
+
+                    # 가격 포맷팅
+                    if not price_data:
+                        curr, rate = "-", "-"
+                    else:
+                        try:
+                            curr = f"{int(float(price_data.get('price', 0))):,}원"
+                        except:
+                            curr = str(price_data.get('price', 0))
+                        rate = f"{price_data.get('rate', '0.00')}%"
+
+                    results.append({
+                        "display_market": m_label,
+                        "display_name": f"{stock['name']}({stock['code']})",
+                        "current_price": curr,
+                        "change_rate": rate,
+                        "market_code": m_code,
+                        "stock_code": stock['code'],
+                        "stock_name": stock['name']
+                    })
+
+                    # 구독 키 생성
+                    tr_id = detect_tr_id(m_type, "tick")
+                    if m_type == "domestic":
+                        tr_key = stock['code']
+                    else:
+                        tr_key = f"D{m_code}{stock['code']}"
+                    
+                    new_subs.append({"tr_id": tr_id, "tr_key": tr_key})
+
+                # (4) 검색 결과 전송
+                await websocket.send_json({ "type": "search_result", "data": results })
+
+                # (5) 검색된 종목들 실시간 구독 시작
+                if new_subs:
+                    await kis_ws_manager.subscribe_items(new_subs)
+
+    except WebSocketDisconnect:
+        logger.info("Client disconnected")
     except Exception as e:
         logger.error(f"WebSocket Error: {e}")
         try:
             await websocket.close()
         except:
             pass
+    finally:
+        kis_ws_manager.remove_client(push_to_client)

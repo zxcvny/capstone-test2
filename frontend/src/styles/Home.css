@@ -282,7 +282,6 @@
 .stock-code {
     font-size: 11px;
     color: var(--color-text-muted);
-    font-family: 'Roboto Mono', monospace;
 }
 
 .market-badge {
@@ -640,6 +639,73 @@
     color: var(--color-text-muted);
     font-size: 14px;
     margin-bottom: 20px;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 14px 16px;
+    margin: 10px 0 24px 0;
+    background-color: var(--color-bg-main);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-main);
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.modal-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(226, 123, 88, 0.15); /* 부드러운 오렌지 광원 */
+}
+
+.modal-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* 버튼 그룹 (취소/생성 버튼 배치) */
+.modal-btn-group {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+/* 공통 버튼 스타일 */
+.modal-btn-group button {
+    flex: 1; /* 버튼 너비 1:1 비율 */
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* 취소 버튼 */
+.modal-cancel-btn {
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.modal-cancel-btn:hover {
+    background-color: var(--color-bg-hover);
+    color: var(--color-text-main);
+    border-color: var(--color-text-muted);
+}
+
+/* 생성(확인) 버튼 */
+.modal-confirm-btn {
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: white;
+}
+
+.modal-confirm-btn:hover {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(226, 123, 88, 0.3);
 }
 
 /* --- [NEW] 관심종목 그룹 관리 바 스타일 --- */

@@ -8,7 +8,7 @@ from services.kis.ranking.base import ranking_base_service
 
 logger = logging.getLogger(__name__)
 
-class StockDetailService:
+class StockInfoService:
     def __init__(self):
         self.base_url = settings.KIS_BASE_URL
 
@@ -23,13 +23,12 @@ class StockDetailService:
             "custtype": custtype,
         }
     async def get_stock_detail(self, market: str, code: str, exchange: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        if market.lower() == "domestic":
+        if market.lower() in ["domestic", "kospi", "kosdaq"]:
             return await self._get_domestic_stock(code)
         
-        elif market.lower() == "overseas":
+        elif market.lower() in ["overseas", "nas", "nasdaq"]:
             if not exchange:
-                logger.error("해외주식 조회 시 거래소 코드(exchange)는 필수입니다.")
-                return None
+                exchange = "NAS" 
             return await self._get_overseas_stock(code, exchange)
         
         else:
@@ -62,7 +61,7 @@ class StockDetailService:
                     "code": code,
                     "price": data.get("stck_prpr"), # 주식 현재가
                     "diff": data.get("prdy_vrss"), # 전일 대비
-                    "change_rate": data.get("prdy_ctrt"), # 전일 대비율
+                    "rate": data.get("prdy_ctrt"), # 전일 대비율
                     "amount": data.get("acml_tr_pbmn"), # 누적 거래 대금
                     "volume": data.get("acml_vol"), # 누적 거래량
                     "shares_outstanding": data.get("lstn_stcn"), # 상장 주수
@@ -123,7 +122,7 @@ class StockDetailService:
                     "code": code,
                     "price": str(price_krw), # 주식 현재가
                     "diff": str(diff_krw), # 전일 대비
-                    "change_rate": str(change_rate), # 전일 대비율
+                    "rate": str(change_rate), # 전일 대비율
                     "amount": str(amount_krw), # 거래 대금
                     "volume": data.get("tvol"), # 거래량
                     "shares_outstanding": data.get("shar"), # 상장 주수
@@ -135,4 +134,4 @@ class StockDetailService:
             logger.error(f"⛔ Failed to fetch overseas stock: {e}")
             return None
 
-stock_detail_service = StockDetailService()
+stock_info_service = StockInfoService()
