@@ -248,12 +248,12 @@ function MyFavorite() {
                                     <td className="col-name">
                                         <div className="stock-info">
                                             <div className="stock-meta">
-                                                <span className={`market-badge ${item.market === 'domestic' ? 'domestic' : 'overseas'}`}>
-                                                    {item.market === 'domestic' ? 'KOR' : 'USA'}
+                                                <span className={`home-market-badge ${item.market === 'domestic' ? 'domestic' : 'overseas'}`}>
+                                                    {item.market === 'domestic' ? '국내' : '해외'}
                                                 </span>
-                                                <span className="stock-code">{item.code}</span>
+                                                <span className="home-stock-code">{item.code}</span>
                                             </div>
-                                            <span className="stock-name">{item.name}</span>
+                                            <span className="home-stock-name">{item.name}</span>
                                         </div>
                                     </td>
                                     <td><div className="price-val">{formatPrice(item.price)}</div></td>
