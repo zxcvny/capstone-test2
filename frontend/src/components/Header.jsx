@@ -189,13 +189,15 @@ function Header() {
                                     >
                                         <div className="search-result-item">
                                             <div className="result-left">
+                                            <div className="stock-main-line">
+                                                <span className={`market-badge ${stock.display_market === "국내" ? "domestic" : "overseas"}`}>
+                                                {stock.display_market}
+                                                </span>
+
                                                 <span className="stock-display-name">{stock.display_name}</span>
-                                                <div className="stock-sub-info">
-                                                    <span className={`market-badge ${stock.market_code === 'KR' ? 'domestic' : 'overseas'}`}>
-                                                        {stock.display_market}
-                                                    </span>
-                                                    <span className="stock-code-display">{stock.stock_code}</span>
-                                                </div>
+
+                                                <span className="stock-code-inline">{stock.stock_code}</span>
+                                            </div>
                                             </div>
                                             
                                             <div className="result-right">

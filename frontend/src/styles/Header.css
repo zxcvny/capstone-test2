@@ -198,13 +198,6 @@
     width: 100%;
 }
 
-/* === [추가] 하단 정보 (뱃지 + 코드) 컨테이너 === */
-.stock-sub-info {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
 /* 뱃지 스타일 미세 조정 */
 .market-badge {
     font-size: 10px;
@@ -250,4 +243,16 @@
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+.stock-main-line {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* 배지-이름-코드 사이 간격 */
+}
+
+.stock-code-inline {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    flex-shrink: 0; /* 이름 길어져도 눌리지 않게 */
 }

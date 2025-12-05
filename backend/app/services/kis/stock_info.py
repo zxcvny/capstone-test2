@@ -1,6 +1,7 @@
 import httpx
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from datetime import datetime
 
 from core.config import settings
 from services.kis.auth import kis_auth
@@ -132,6 +133,80 @@ class StockInfoService:
         
         except Exception as e:
             logger.error(f"⛔ Failed to fetch overseas stock: {e}")
+            return None
+        
+    async def get_domestic_stock_time_conclusion(self, code: str, start_time: Optional[str] = None) -> Optional[List[Dict[str, Any]]]:
+        """
+        국내 주식의 당일 시간대별 체결 내역을 조회합니다.
+        :param code: 종목 코드 (6자리)
+        :param start_time: 조회 시작 시간 (HHMMSS). 미입력 시 현재 시간(최신 데이터) 기준으로 조회
+        """
+        tr_id = "FHPST01060000"  # 주식현재가 당일시간대별체결 TR ID
+        url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-time-itemconclusion"
+
+        # start_time이 없으면 현재 시간을 HHMMSS 형식으로 설정
+        if not start_time:
+            start_time = datetime.now().strftime("%H%M%S")
+
+        headers = await self._get_headers(tr_id)
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_INPUT_ISCD": code,
+            "FID_INPUT_HOUR_1": start_time
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                res_json = response.json()
+
+                if res_json["rt_cd"] != "0":
+                    logger.error(f"⛔ Time Conclusion API Error: {res_json['msg1']}")
+                    return None
+                
+                # output2: 체결 내역 리스트 (output1은 현재가 상세 정보)
+                return res_json["output2"]
+
+        except Exception as e:
+            logger.error(f"⛔ Failed to fetch domestic stock time conclusion: {e}")
+            return None
+        
+    async def get_overseas_stock_conclusion(self, code: str, exchange: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        해외 주식의 체결 추이(체결 내역)를 조회합니다.
+        :param code: 종목 코드 (예: AAPL)
+        :param exchange: 거래소 코드 (예: NAS, NYS, AMS 등)
+        """
+        tr_id = "HHDFS76200300"  # 해외주식 체결추이 TR ID
+        url = f"{self.base_url}/uapi/overseas-price/v1/quotations/inquire-ccnl"
+
+        headers = await self._get_headers(tr_id)
+        
+        # 문서에 명시된 필수 파라미터 구성
+        params = {
+            "EXCD": exchange.upper(), # 거래소코드 (NYS, NAS, AMS 등)
+            "SYMB": code.upper(),     # 종목코드
+            "AUTH": "",               # 사용자권한정보 (공백)
+            "KEYB": "",               # NEXT KEY BUFF (공백)
+            "TDAY": "1"               # 당일전일구분 (0:전일, 1:당일) -> 당일 기준으로 설정
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                res_json = response.json()
+
+                if res_json["rt_cd"] != "0":
+                    logger.error(f"⛔ Overseas Conclusion API Error: {res_json['msg1']}")
+                    return None
+                
+                # output1: 체결추이 리스트
+                return res_json["output1"]
+
+        except Exception as e:
+            logger.error(f"⛔ Failed to fetch overseas stock conclusion: {e}")
             return None
 
 stock_info_service = StockInfoService()

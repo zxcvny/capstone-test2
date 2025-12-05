@@ -1,7 +1,6 @@
-// src/pages/StockDetailPage.jsx
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { FaChartBar, FaInfoCircle } from "react-icons/fa"; 
+import { FaChartBar, FaInfoCircle, FaListUl } from "react-icons/fa"; // 아이콘 추가
 import axios from "../lib/axios";
 import { formatNumber, formatPrice, formatAmount, getRateClass } from "../utils/formatters";
 import "../styles/StockDetailPage.css";
@@ -10,7 +9,6 @@ function StockDetailPage() {
     const { market, stockId } = useParams();
     const location = useLocation();
 
-    // URL 파라미터 및 State 기반 코드 설정
     const realCode = market === 'overseas'
         ? (location.state?.symb || stockId)
         : (location.state?.code || stockId);
@@ -18,18 +16,19 @@ function StockDetailPage() {
     const stockName = location.state?.name || stockId;
     const excd = location.state?.excd || (market === 'overseas' ? 'NAS' : '');
 
-    // 상태 관리
     const [staticInfo, setStaticInfo] = useState(null);
     const [realtimeData, setRealtimeData] = useState(null);
     const [askData, setAskData] = useState(null);
+    
+    // [추가] 실시간 체결 내역 저장 State
+    const [tradeHistory, setTradeHistory] = useState([]);
 
     const ws = useRef(null);
 
     useEffect(() => {
-        window.scrollTo(0, 0);  // 페이지 최상단으로 이동
+        window.scrollTo(0, 0);
     }, [])
 
-    // --- 데이터 로딩 및 웹소켓 (이전과 동일) ---
     useEffect(() => {
         const fetchStockDetail = async () => {
             try {
@@ -80,13 +79,32 @@ function StockDetailPage() {
                 if (message.type !== 'realtime') return;
                 const data = message.data;
 
-                // [유지] 현재 보고 있는 종목 데이터가 아니면 무시
                 if (data.code !== realCode) {
                      return;
                 }
 
                 if (data.type === 'tick') {
                     setRealtimeData(prev => ({ ...prev, ...data }));
+                    
+                    // [추가] 체결 내역 업데이트 로직
+                    setTradeHistory(prev => {
+                        // 백엔드에서 시간이 오지 않을 경우 클라이언트 시간 사용
+                        const now = new Date();
+                        const timeStr = data.time || now.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                        
+                        const newTrade = {
+                            id: Date.now() + Math.random(), // 고유 키
+                            time: timeStr,
+                            price: data.price,
+                            diff: data.diff,
+                            rate: data.rate,
+                            // data.tvol(tick volume)이 있다면 사용, 없다면 누적거래량 표시 등 정책 결정 필요
+                            // 여기서는 간단히 가격 변동 위주로 표시
+                        };
+                        // 최신 30개만 유지
+                        return [newTrade, ...prev].slice(0, 30);
+                    });
+
                 } else if (data.type === 'ask') {
                     setAskData(data);
                 }
@@ -103,15 +121,26 @@ function StockDetailPage() {
         };
     }, [market, realCode, excd]);
 
-    // --- 렌더링 변수 ---
     const currentPrice = realtimeData?.price || staticInfo?.price || 0;
     const currentRate = realtimeData?.rate || staticInfo?.rate || 0;
     const currentDiff = realtimeData?.diff || staticInfo?.diff || 0;
     const rateClass = getRateClass(currentRate);
 
-    // 호가 데이터
-    const asks = [5, 4, 3, 2, 1].map(i => ({ price: askData?.[`ask_price_${i}`], volume: askData?.[`ask_volume_${i}`] || 0 }));
-    const bids = [1, 2, 3, 4, 5].map(i => ({ price: askData?.[`bid_price_${i}`], volume: askData?.[`bid_volume_${i}`] || 0 }));
+    const asks = Array.from({ length: 10 }, (_, i) => {
+        const level = 10 - i;
+        return {
+            price: askData?.[`ask_price_${level}`],
+            volume: askData?.[`ask_remain_${level}`] || 0
+        };
+    });
+
+    const bids = Array.from({ length: 10 }, (_, i) => {
+        const level = i + 1;
+        return {
+            price: askData?.[`bid_price_${level}`],
+            volume: askData?.[`bid_remain_${level}`] || 0
+        };
+    });
     const maxVolume = Math.max(...asks.map(a => Number(a.volume)), ...bids.map(b => Number(b.volume)), 1);
 
     return (
@@ -126,11 +155,8 @@ function StockDetailPage() {
                     <span className={`main-price ${rateClass}`}>
                         {formatNumber(currentPrice)}<span className="unit">원</span>
                     </span>
-                    
                     <span className="divider-bar">|</span>
-                    
                     <span className="compare-text">전일 대비</span>
-                    
                     <span className={`change-info ${rateClass}`}>
                         {Number(currentDiff) > 0 ? '+' : ''}{formatNumber(currentDiff)}원
                         &nbsp;
@@ -153,9 +179,7 @@ function StockDetailPage() {
                         </div>
                         <div className="chart-placeholder">
                             <div className="chart-mock-grid"></div>
-                            <div className="chart-msg">
-                                📊 Chart Area
-                            </div>
+                            <div className="chart-msg">📊 Chart Area</div>
                         </div>
                     </div>
 
@@ -193,10 +217,6 @@ function StockDetailPage() {
                                 </div>
                                 <div className="detail-data-grid">
                                     <div className="detail-item">
-                                        <span className="label">시가총액</span>
-                                        <span className="value">{formatAmount(staticInfo.market_cap)}</span>
-                                    </div>
-                                    <div className="detail-item">
                                         <span className="label">PER</span>
                                         <span className="value">{staticInfo.per || '-'} 배</span>
                                     </div>
@@ -208,6 +228,10 @@ function StockDetailPage() {
                                         <span className="label">EPS</span>
                                         <span className="value">{formatNumber(staticInfo.eps)} 원</span>
                                     </div>
+                                    <div className="detail-item">
+                                        <span className="label">시가총액</span>
+                                        <span className="value">{formatAmount(staticInfo.market_cap)}</span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -215,6 +239,7 @@ function StockDetailPage() {
                 </div>
 
                 <div className="right-column">
+                    {/* 호가창 */}
                     <div className="order-book-card">
                         <div className="order-book-header">
                             <span className="ob-title">호가 (Order Book)</span>
@@ -259,6 +284,36 @@ function StockDetailPage() {
                             <button className="trade-btn sell">매도</button>
                         </div>
                     </div>
+
+                    {/* [추가] 실시간 체결 리스트 카드 */}
+                    <div className="trade-list-card">
+                        <div className="card-title compact">
+                            <FaListUl /> <span>실시간 체결</span>
+                        </div>
+                        <div className="trade-list-header-row">
+                            <span>시간</span>
+                            <span>체결가</span>
+                            <span>전일대비</span>
+                        </div>
+                        <div className="trade-list-body custom-scrollbar">
+                            {tradeHistory.length === 0 ? (
+                                <div className="trade-empty">체결 내역 대기중...</div>
+                            ) : (
+                                tradeHistory.map((trade) => (
+                                    <div key={trade.id} className="trade-row-item">
+                                        <span className="t-time">{trade.time}</span>
+                                        <span className={`t-price ${getRateClass(trade.rate)}`}>
+                                            {formatPrice(trade.price)}
+                                        </span>
+                                        <span className={`t-diff ${getRateClass(trade.rate)}`}>
+                                            {Number(trade.diff) > 0 ? '+' : ''}{formatNumber(trade.diff)}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

@@ -1,9 +1,8 @@
 import asyncio
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from services.kis.stock_search import stock_search_service
 from services.kis.stock_info import stock_info_service
-from services.kis.data import kis_data
 
 router = APIRouter(prefix="/stocks", tags=["Stocks Search"])
 
@@ -62,7 +61,7 @@ async def search_stocks_with_price(
 
         results.append({
             "display_market": market_label,
-            "display_name": f"{stock['name']}({stock['code']})",
+            "display_name": stock['name'],
             "current_price": current_price,
             "change_rate": change_rate,
             "market_code": stock['market'],
