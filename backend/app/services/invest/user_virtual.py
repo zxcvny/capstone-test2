@@ -163,6 +163,7 @@ class VirtualInvestService:
             response_list.append({
                 "stock_code": p.stock_code,
                 "stock_name": stock_info['name'] if stock_info and 'name' in stock_info else p.stock_code, # 이름 추가 권장
+                "market_type": p.market_type,
                 "quantity": p.quantity,
                 "average_price": p.average_price,
                 "current_price": current_price,

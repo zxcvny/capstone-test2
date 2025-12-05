@@ -16,6 +16,7 @@ class VirtualAccountResponse(BaseModel):
 class PortfolioResponse(BaseModel):
     stock_code: str
     stock_name: str = ""
+    market_type: str
     quantity: int
     average_price: float
     current_price: float

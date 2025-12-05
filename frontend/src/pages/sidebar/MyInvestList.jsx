@@ -1,258 +1,285 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import axios from '../../lib/axios';
-import { formatNumber } from '../../utils/formatters'; 
-import '../../styles/MyInvestList.css'; 
 
-const MyInvestList = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [account, setAccount] = useState(null); 
-  const [portfolio, setPortfolio] = useState([]); 
-  const [hasAccount, setHasAccount] = useState(false);
+import AccountCreateModal from '../../components/modals/AccountCreateModal';
+import axios from "../../lib/axios";
+import { formatNumber, formatAmount } from "../../utils/formatters";
+import logoMini from "../../assets/logo-mini.PNG";
+import '../../styles/MyInvestList.css';
 
-  // 실시간 데이터 관리를 위한 State
-  const [realtimePortfolio, setRealtimePortfolio] = useState([]);
-  const ws = useRef(null);
+function MyInvestList() {
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchMyAccount();
-    return () => {
-      if (ws.current) ws.current.close();
-    };
-  }, []);
+    const [account, setAccount] = useState(null); // 계좌 정보
+    const [hasAccount, setHasAccount] = useState(false); // 계좌 유무
+    const [portfolio, setPortfolio] = useState([]); // 포트폴리오
 
-  useEffect(() => {
-    if (portfolio.length > 0) {
-      connectWebSocket();
-    } else {
-      setRealtimePortfolio([]);
-    }
-  }, [portfolio]);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); // 계좌 생성 모달 상태
+    const [realtimePortfolio, setRealtimePortfolio] = useState([]); // 포트폴리오 실시간 관리
 
-  const fetchMyAccount = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get('/invest/virtual/account');
-      setAccount(res.data);
-      setHasAccount(true);
-      await fetchPortfolio();
-    } catch (error) {
-      if (error.response && error.response.status === 404) {
-        setHasAccount(false);
-      } else {
-        console.error("계좌 조회 실패:", error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    const ws = useRef(null);
 
-  const fetchPortfolio = async () => {
-    try {
-      const res = await axios.get('/invest/virtual/portfolio');
-      setPortfolio(res.data);
-      setRealtimePortfolio(res.data);
-    } catch (error) {
-      console.error("포트폴리오 조회 실패:", error);
-    }
-  };
-
-  const connectWebSocket = () => {
-    if (ws.current) ws.current.close();
-    ws.current = new WebSocket('ws://localhost:8000/stocks/ws/realtime');
-
-    ws.current.onopen = () => {
-      const items = portfolio.map(item => ({
-        code: item.stock_code,
-        market: item.market_type || "domestic",
-        type: "tick" 
-      }));
-      ws.current.send(JSON.stringify({ items }));
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'realtime' && msg.data.type === 'tick') {
-          updatePortfolioPrice(msg.data);
+    // 초기 로딩
+    useEffect(() => {
+        fetchMyAccount(); // 계좌 정보 먼저 확인
+        return () => {
+            if (ws.current) ws.current.close();
         }
-      } catch (e) {
-        console.error("WS Parse Error:", e);
-      }
-    };
-  };
+    }, []);
 
-  const updatePortfolioPrice = (data) => {
-    setRealtimePortfolio(prevList => {
-        return prevList.map(item => {
-            if (item.stock_code === data.code) {
-                const currentPrice = parseFloat(data.price.replace(/,/g, ''));
-                const valuation = currentPrice * item.quantity;
-                const invested = item.average_price * item.quantity;
-                const profit = valuation - invested;
-                const rate = invested > 0 ? (profit / invested) * 100 : 0;
+    // 포트폴리오 변경 시 웹소켓 연결
+    useEffect(() => {
+        if (portfolio.length > 0) {
+            connectWebSocket();
+        } else {
+            setRealtimePortfolio([]);
+        }
+    }, [portfolio]);
 
-                return {
-                    ...item,
-                    current_price: currentPrice,
-                    profit_loss: profit,
-                    profit_rate: rate
-                };
+    // 계좌 및 포트폴리오 조회
+    const fetchMyAccount = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('/invest/virtual/account');
+            setAccount(response.data);
+            setHasAccount(true);
+            await fetchPortfolio(); // 계좌가 있으면 포트폴리오 조회
+        } catch (error) {
+            // 계좌가 없는 경우
+            if (error.response && error.response.status === 404) {
+                setHasAccount(false);
+            } else {
+                console.log("계좌 조회 오류:", error);
             }
-            return item;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchPortfolio = async () => {
+        try {
+            const response = await axios.get('/invest/virtual/portfolio');
+            setPortfolio(response.data);
+            setRealtimePortfolio(response.data);
+        } catch (error) {
+            console.log("포트폴리오 조회 실패:", error);
+        }
+    };
+
+    // 실시간 웹소켓 로직
+    const connectWebSocket = () => {
+        if (ws.current) ws.current.close();
+        ws.current = new WebSocket('ws://localhost:8000/stocks/ws/realtime');
+        
+        ws.current.onopen = () => {
+            const items = portfolio.map(item => ({
+                code: item.stock_code,
+                market: item.market_type,
+                type: "tick",
+                excd: item.market_type === 'overseas' ? 'NAS' : '' // 해외주식 거래소 코드 처리 필요시
+            }));
+            if(items.length > 0) {
+                ws.current.send(JSON.stringify({ items }));
+            }
+        };
+
+        ws.current.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'realtime' && msg.data.type === 'tick') {
+                    updatePortfolioPrice(msg.data);
+                }
+            } catch (error) {
+                console.log("WS Parse Error:", error);
+            }
+        };
+    };
+
+    const updatePortfolioPrice = (data) => {
+        setRealtimePortfolio(prevList => {
+            return prevList.map(item => {
+                if (item.stock_code === data.code) {
+                    const currentPrice = typeof data.price === 'string' 
+                        ? parseFloat(data.price.replace(/,/g, '')) 
+                        : data.price;
+                        
+                    const valuation = currentPrice * item.quantity;
+                    const invested = item.average_price * item.quantity;
+                    const profit = valuation - invested;
+                    const rate = invested > 0 ? (profit / invested) * 100 : 0;
+
+                    return {
+                        ...item,
+                        current_price: currentPrice,
+                        profit_loss: profit,
+                        profit_rate: rate
+                    };
+                }
+                return item;
+            });
         });
-    });
-  };
+    };
 
-  const handleStartInvest = async () => {
-    if (!window.confirm("모의투자를 시작하시겠습니까?\n가상 계좌가 생성되고 1,000만원이 지급됩니다.")) return;
-    try {
-      const res = await axios.post('/invest/virtual/account');
-      alert(`계좌가 생성되었습니다!\n계좌번호: ${res.data.account_number}`);
-      setAccount(res.data);
-      setHasAccount(true);
-      setPortfolio([]);
-    } catch (error) {
-      alert(error.response?.data?.detail || "계좌 생성에 실패했습니다.");
+    // 3. 계좌 개설 처리 (모달에서 호출)
+    const handleProcessCreateAccount = async () => {
+        try {
+            const res = await axios.post('/invest/virtual/account');
+            setIsCreateModalOpen(false); // 모달 닫기
+            alert("🚀 계좌가 성공적으로 개설되었습니다!\n1,000만원이 지급되었습니다.");
+            
+            // 상태 갱신
+            setAccount(res.data);
+            setHasAccount(true);
+            setPortfolio([]);
+            setRealtimePortfolio([]);
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.detail || "계좌 생성에 실패했습니다.");
+        }
+    };
+
+    const handleRowClick = (item) => {
+        const market = item.market_type || "domestic"; 
+        const routeId = market === 'overseas' ? item.stock_code : item.stock_code; 
+        navigate(`/stock/${market}/${routeId}`, { 
+            state: { 
+                code: item.stock_code, 
+                name: item.stock_name 
+            } 
+        });
+    };
+
+    // 로딩 상태
+    if (loading) {
+        return (
+            <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p className="loading-text">투자 정보를 불러오는 중입니다...</p>
+            </div>
+        );
     }
-  };
 
-  const handleRowClick = (item) => {
-     const market = item.market_type || "domestic"; 
-     navigate(`/stock/${market}/${item.stock_code}`, { state: { name: item.stock_name } });
-  };
+    // 계좌가 없을 때
+    if (!hasAccount) {
+        return (
+            <div className="invest-empty-container">
+                <div className="invest-empty-card">
+                    <div className="rocket-icon-wrapper">
+                        <img src={logoMini} alt="Zero to Mars Rocket" />
+                    </div>
+                    <h2 className="empty-title">모의투자 계좌 개설</h2>
+                    <p className="empty-desc">
+                        아직 투자 내역이 없습니다.<br/>
+                        지금 바로 계좌를 개설하고<br/>
+                        <strong>1,000만원</strong>의 시드머니를 받아보세요!
+                    </p>
+                    <button 
+                        className="btn-start-invest" 
+                        onClick={() => setIsCreateModalOpen(true)}
+                    >
+                        계좌 개설하고 시작하기
+                    </button>
+                </div>
+                
+                {/* 약관 동의 및 계좌 개설 모달 */}
+                <AccountCreateModal 
+                    isOpen={isCreateModalOpen} 
+                    onClose={() => setIsCreateModalOpen(false)} 
+                    handleCreateAccount={handleProcessCreateAccount} 
+                />
+            </div>
+        );
+    }
 
-  // 총 자산 및 손익 계산
-  const totalStockEval = realtimePortfolio.reduce((sum, item) => sum + (item.current_price * item.quantity), 0);
-  const totalAsset = (account?.balance || 0) + totalStockEval;
-  const totalInvest = realtimePortfolio.reduce((sum, item) => sum + (item.average_price * item.quantity), 0);
-  const totalProfit = totalStockEval - totalInvest;
-  const totalRate = totalInvest > 0 ? (totalProfit / totalInvest) * 100 : 0;
+    const totalStockEval = realtimePortfolio.reduce((sum, item) => sum + ((item.current_price || item.average_price) * item.quantity), 0);
+    const totalInvest = realtimePortfolio.reduce((sum, item) => sum + (item.average_price * item.quantity), 0);
+    const totalProfit = totalStockEval - totalInvest;
+    const totalRate = totalInvest > 0 ? (totalProfit / totalInvest) * 100 : 0;
 
-  if (loading) return <div className="loading-container">로딩 중...</div>;
-
-  if (!hasAccount) {
     return (
-      <div className="invest-start-container">
-        <div className="invest-intro">
-          <h2>📈 모의투자 시작하기</h2>
-          <p>아직 모의투자 계좌가 없습니다.</p>
-          <p>지금 시작하면 <strong>1,000만원</strong>의 가상 시드머니를 드려요!</p>
-          <button className="start-btn" onClick={handleStartInvest}>모의투자 계좌 만들기</button>
+        <div className="home-container">
+             <div className="home-intro" style={{ marginTop: '20px' }}>
+                <h3 className="intro-title">📉 내 투자 현황</h3>
+            </div>
+
+            <div className="dashboard-stats-card" style={{ marginBottom: '20px' }}>
+                <div className="stats-row basic" style={{ gridTemplateColumns: 'repeat(4, 1fr)'}}>
+                    <div className="stat-box">
+                        <span className="label">총 평가 손익</span>
+                        <span className={`value ${totalProfit >= 0 ? 'text-up' : 'text-down'}`}>
+                            {totalProfit > 0 ? '+' : ''}{formatNumber(totalProfit)}원
+                        </span>
+                    </div>
+                    <div className="stat-box">
+                        <span className="label">총 수익률</span>
+                        <span className={`value ${totalRate >= 0 ? 'text-up' : 'text-down'}`}>
+                            {totalRate.toFixed(2)}%
+                        </span>
+                    </div>
+                    <div className="stat-box">
+                        <span className="label">총 평가 금액</span>
+                        <span className="value">{formatNumber(totalStockEval)}원</span>
+                    </div>
+                     <div className="stat-box">
+                        <span className="label">주문 가능 금액</span>
+                        <span className="value">{formatNumber(account?.balance)}원</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="table-container">
+                <table className="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>종목명</th>
+                            <th>보유수량</th>
+                            <th>평단가</th>
+                            <th>현재가</th>
+                            <th>평가손익</th>
+                            <th>수익률</th>
+                            <th>평가금액</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {realtimePortfolio.length > 0 ? (
+                            realtimePortfolio.map((item) => (
+                                <tr key={item.stock_code} onClick={() => handleRowClick(item)} style={{ cursor: 'pointer' }}>
+                                    <td className="col-name" style={{ textAlign: 'left' }}>
+                                        <div className="stock-info">
+                                            <span className={`home-market-badge ${item.market_type === 'overseas' ? 'overseas' : 'domestic'}`}>
+                                                {item.market_type === 'overseas' ? '해외' : '국내'}
+                                            </span>
+                                            <span className="home-stock-name">{item.stock_name}</span>
+                                        </div>
+                                    </td>
+                                    <td>{formatNumber(item.quantity)}주</td>
+                                    <td>{formatNumber(Math.floor(item.average_price))}원</td>
+                                    <td className="price-val">{formatNumber(item.current_price || item.average_price)}원</td>
+                                    <td className={item.profit_loss >= 0 ? 'text-up' : 'text-down'}>
+                                        {formatNumber(item.profit_loss)}원
+                                    </td>
+                                    <td className={item.profit_rate >= 0 ? 'text-up' : 'text-down'}>
+                                        {item.profit_rate ? item.profit_rate.toFixed(2) : '0.00'}%
+                                    </td>
+                                    <td>{formatAmount(item.current_price * item.quantity)}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="7">
+                                    <div className="empty-state">
+                                        보유 중인 주식이 없습니다.<br/>
+                                        관심 종목을 매수해보세요!
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className="my-invest-container">
-      <h2 className="page-title">내 투자 현황</h2>
-      
-      {/* 종합 자산 현황 카드 */}
-      <div className="account-summary-card">
-        <div className="summary-row main">
-             <div className="summary-item">
-                <span className="label">총 자산 (평가)</span>
-                <span className="value highlight">{formatNumber(Math.floor(totalAsset))} 원</span>
-            </div>
-            <div className="summary-item">
-                <span className="label">총 평가손익</span>
-                <span className={`value ${totalProfit >= 0 ? 'up' : 'down'}`}>
-                    {formatNumber(Math.floor(totalProfit))} 원
-                    <span className="rate-badge"> ({totalRate.toFixed(2)}%)</span>
-                </span>
-            </div>
-        </div>
-        <div className="summary-divider"></div>
-        <div className="summary-row sub">
-            <div className="summary-item-sm">
-                <span className="label">예수금</span>
-                <span className="value">{formatNumber(account?.balance)} 원</span>
-            </div>
-             <div className="summary-item-sm">
-                <span className="label">총 매입금액</span>
-                <span className="value">{formatNumber(Math.floor(totalInvest))} 원</span>
-            </div>
-             <div className="summary-item-sm">
-                <span className="label">계좌번호</span>
-                <span className="value">{account?.account_number}</span>
-            </div>
-        </div>
-      </div>
-
-      <h3 className="section-title">보유 종목 ({portfolio.length})</h3>
-      
-      {/* 포트폴리오 리스트 */}
-      <div className="portfolio-list">
-        {realtimePortfolio.length === 0 ? (
-          <div className="empty-portfolio">
-            <p>보유 중인 주식이 없습니다.</p>
-            <p>검색 탭에서 종목을 찾아 매수를 시작해보세요!</p>
-          </div>
-        ) : (
-          <table className="portfolio-table">
-            <thead>
-              <tr>
-                <th style={{width: '20%'}}>종목명</th>
-                <th>현재가</th>
-                <th>평단가</th>
-                <th>변동률</th>
-                <th>보유수량</th>
-                <th>평가금액</th>
-                <th>투자원금</th>
-              </tr>
-            </thead>
-            <tbody>
-              {realtimePortfolio.map((item) => {
-                // 종목별 계산
-                const investAmt = Math.floor(item.average_price * item.quantity); // 투자원금
-                const evalAmt = Math.floor(item.current_price * item.quantity);   // 평가금액
-
-                return (
-                  <tr key={item.stock_code} onClick={() => handleRowClick(item)} className="clickable-row">
-                    {/* 1. 종목명 */}
-                    <td>
-                      <div className="stock-name">{item.stock_name}</div>
-                      <div className="stock-code">{item.stock_code}</div>
-                    </td>
-                    
-                    {/* 2. 현재가 */}
-                    <td className={`amt-text ${item.current_price > item.average_price ? 'up' : item.current_price < item.average_price ? 'down' : ''}`}>
-                        {formatNumber(item.current_price)}
-                    </td>
-
-                    {/* 3. 평단가 (구매금액) */}
-                    <td className="amt-text">
-                        {formatNumber(Math.floor(item.average_price))}
-                    </td>
-
-                    {/* 4. 변동률 (수익률) */}
-                    <td className={item.profit_rate >= 0 ? 'up' : 'down'}>
-                        {item.profit_rate.toFixed(2)}%
-                    </td>
-
-                    {/* 5. 보유수량 */}
-                    <td>{formatNumber(item.quantity)}</td>
-
-                    {/* 6. 평가금액 */}
-                    <td className="amt-text">
-                        {formatNumber(evalAmt)}
-                    </td>
-
-                    {/* 7. 투자원금 */}
-                    <td className="amt-text" style={{color: '#666'}}>
-                        {formatNumber(investAmt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-};
+}
 
 export default MyInvestList;

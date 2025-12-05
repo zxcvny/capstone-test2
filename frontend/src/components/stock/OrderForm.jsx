@@ -1,3 +1,4 @@
+// src/components/stock/OrderForm.jsx
 import { FaWallet, FaPlus, FaMinus } from "react-icons/fa";
 import { formatNumber, formatAmount } from "../../utils/formatters";
 
@@ -18,28 +19,7 @@ function OrderForm({
 
     return (
         <div className="col-orderform">
-            {holdingQty > 0 && (
-                <div className="my-position-card">
-                    <div className="card-header-sm">
-                        <span className="card-title"><FaWallet /> 내 보유 현황</span>
-                    </div>
-                    <div className="my-pos-body">
-                        <div className="pos-row"><span>평단가</span><span className="val">{formatNumber(Math.floor(avgPrice))}원</span></div>
-                        <div className="pos-row"><span>보유수량</span><span className="val">{formatNumber(holdingQty)}주</span></div>
-                        <div className="pos-row"><span>투자원금</span><span className="val">{formatNumber(myTotalInvest)}원</span></div>
-                        <div className="pos-divider"></div>
-                        <div className="pos-row highlight"><span>평가금액</span><span className="val">{formatNumber(myTotalEval)}원</span></div>
-                        <div className="pos-row">
-                            <span>평가손익</span>
-                            <span className={`val ${myProfitAmt >= 0 ? 'up' : 'down'}`}>{formatNumber(myProfitAmt)}원</span>
-                        </div>
-                        <div className="pos-row large">
-                            <span>수익률</span>
-                            <span className={`val ${myProfitRate >= 0 ? 'up' : 'down'}`}>{myProfitRate.toFixed(2)}%</span>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* 1. 주문 폼 (위로 이동됨) */}
             <div className={`order-form-card ${orderType}`}>
                 <div className="order-tabs">
                     <button className={`tab-btn buy ${orderType === 'buy' ? 'active' : ''}`} onClick={() => setOrderType('buy')}>매수</button>
@@ -71,11 +51,40 @@ function OrderForm({
                 </div>
                 <div className="user-balance-info">
                     {orderType === 'buy' ? (
-                        <><p>주문가능금액: <strong>{formatNumber(account?.balance || 0)}원</strong></p><p>매수하기가능수량: <strong>{formatNumber(availableBuyQty)}주</strong></p></>
+                        <><p>주문가능금액: <strong>{formatNumber(account?.balance || 0)}원</strong></p><p>매수가능수량: <strong>{formatNumber(availableBuyQty)}주</strong></p></>
                     ) : (
                         <><p>매도가능수량: <strong>{formatNumber(holdingQty)}주</strong></p><p>예상매도금액: <strong>{formatAmount(orderTotalAmount)}</strong></p></>
                     )}
                 </div>
+            </div>
+
+            {/* 2. 내 보유 현황 (아래로 이동됨) */}
+            <div className="my-position-card">
+                <div className="card-header-sm">
+                    <span className="card-title"><FaWallet /> 내 보유 현황</span>
+                </div>
+                {holdingQty > 0 ? (
+                    <div className="my-pos-body">
+                        <div className="pos-row"><span>평단가</span><span className="val">{formatNumber(Math.floor(avgPrice))}원</span></div>
+                        <div className="pos-row"><span>보유수량</span><span className="val">{formatNumber(holdingQty)}주</span></div>
+                        <div className="pos-row"><span>투자원금</span><span className="val">{formatNumber(myTotalInvest)}원</span></div>
+                        <div className="pos-divider"></div>
+                        <div className="pos-row highlight"><span>평가금액</span><span className="val">{formatNumber(myTotalEval)}원</span></div>
+                        <div className="pos-row">
+                            <span>평가손익</span>
+                            <span className={`val ${myProfitAmt >= 0 ? 'up' : 'down'}`}>{formatNumber(myProfitAmt)}원</span>
+                        </div>
+                        <div className="pos-row large">
+                            <span>수익률</span>
+                            <span className={`val ${myProfitRate >= 0 ? 'up' : 'down'}`}>{myProfitRate.toFixed(2)}%</span>
+                        </div>
+                    </div>
+                ) : (
+                    // 보유하지 않은 경우 안내 메시지
+                    <div className="empty-pos-message">
+                        보유하고 있는 종목이 아닙니다.
+                    </div>
+                )}
             </div>
         </div>
     );
