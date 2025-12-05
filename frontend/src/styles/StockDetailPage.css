@@ -386,3 +386,29 @@
     right: 20px;
     margin-left: 0;
 }
+
+.trade-buttons button {
+    flex: 1;
+    height: 48px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.trade-buttons .btn-sell {
+    background-color: #0984e3; /* 파랑 */
+    margin-right: 10px;
+}
+
+.trade-buttons .btn-buy {
+    background-color: #e74c3c; /* 빨강 */
+    margin-left: 10px;
+}
+
+.trade-buttons button:hover {
+    opacity: 0.9;
+}

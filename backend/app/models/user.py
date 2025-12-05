@@ -20,7 +20,8 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     user_favorite = relationship("UserFavorite", back_populates="user", cascade="all, delete-orphan")
     user_favorite_groups = relationship("UserFavoriteGroup", back_populates="user", cascade="all, delete-orphan")
-
+    virtual_account = relationship("VirtualAccount", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    
     @property
     def is_social(self) -> bool:
         return not bool(self.hashed_password)
