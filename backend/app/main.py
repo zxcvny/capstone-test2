@@ -6,7 +6,7 @@ from core.lifespan import lifespan
 from routers import user_profile, user_favorite_group
 from routers.auth import user_general, user_social, token
 from routers.stock import ranking, realtime, info, ai, search
-
+from routers.invest import user_virtual # [추가]
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
@@ -28,6 +28,7 @@ app.include_router(search.router)
 app.include_router(realtime.router)
 app.include_router(ai.router)
 app.include_router(user_favorite_group.router)
+app.include_router(user_virtual.router) # [추가]
 
 @app.get("/")
 def read_root():

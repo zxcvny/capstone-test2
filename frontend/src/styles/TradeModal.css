@@ -1,0 +1,77 @@
+/* src/styles/TradeModal.css */
+
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.trade-modal {
+    background: white;
+    width: 360px;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 12px;
+}
+
+.modal-header h3 { margin: 0; font-size: 20px; }
+.close-btn {
+    background: none; border: none; font-size: 18px; cursor: pointer;
+}
+
+.stock-summary {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.stock-summary .stock-name {
+    display: block; font-size: 16px; color: #666; margin-bottom: 4px;
+}
+.stock-summary .stock-price {
+    display: block; font-size: 24px; font-weight: bold; color: #333;
+}
+
+.trade-info {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+.info-row {
+    display: flex; justify-content: space-between; margin-bottom: 4px;
+}
+
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; font-weight: bold; margin-bottom: 8px; }
+.input-group input {
+    width: 100%; padding: 10px; font-size: 16px;
+    border: 1px solid #ddd; border-radius: 6px; text-align: right;
+}
+
+.total-section {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; font-size: 18px; font-weight: bold;
+}
+.total-price.red { color: #e74c3c; }
+.total-price.blue { color: #0984e3; }
+
+.confirm-btn {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: bold;
+    color: white; border: none; border-radius: 8px; cursor: pointer;
+}
+.confirm-btn.buy { background-color: #e74c3c; }
+.confirm-btn.sell { background-color: #0984e3; }
+.confirm-btn:disabled { background-color: #ccc; cursor: not-allowed; }
