@@ -43,6 +43,11 @@ export const getRateClass = (rate) => {
     return "text-flat";
 };
 
+export const formatHMS = (hms) => {
+    if (!hms || hms.length !== 6) return hms;
+    return `${hms.slice(0,2)}:${hms.slice(2,4)}:${hms.slice(4,6)}`;
+};
+
 /**
  * 등락률 렌더링 (JSX 반환)
  */

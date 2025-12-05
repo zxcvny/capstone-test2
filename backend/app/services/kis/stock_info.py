@@ -24,17 +24,28 @@ class StockInfoService:
             "custtype": custtype,
         }
     async def get_stock_detail(self, market: str, code: str, exchange: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        result = None
         if market.lower() in ["domestic", "kospi", "kosdaq"]:
-            return await self._get_domestic_stock(code)
+            result = await self._get_domestic_stock(code)
+            # 국내주식 체결 내역 추가 조회
+            if result:
+                history = await self.get_domestic_stock_time_conclusion(code)
+                result['history'] = history if history else []
         
         elif market.lower() in ["overseas", "nas", "nasdaq"]:
             if not exchange:
                 exchange = "NAS" 
-            return await self._get_overseas_stock(code, exchange)
+            result = await self._get_overseas_stock(code, exchange)
+            # 해외주식 체결 내역 추가 조회
+            if result:
+                history = await self.get_overseas_stock_conclusion(code, exchange)
+                result['history'] = history if history else []
         
         else:
             logger.error(f"잘못된 시장 구분입니다: {market}")
             return None
+        
+        return result
         
     async def _get_domestic_stock(self, code: str) -> Optional[Dict[str, Any]]:
         tr_id = "FHKST01010100"
@@ -59,6 +70,7 @@ class StockInfoService:
                 data = res_json["output"]
                 return {
                     "market": "domestic",
+                    "market_name": data.get("rprs_mrkt_kor_name"), # 대표 시장 한글 명 (KOSPI200...)
                     "code": code,
                     "price": data.get("stck_prpr"), # 주식 현재가
                     "diff": data.get("prdy_vrss"), # 전일 대비
@@ -120,6 +132,7 @@ class StockInfoService:
 
                 return {
                     "market": "overseas",
+                    "market_name": "NAS",
                     "code": code,
                     "price": str(price_krw), # 주식 현재가
                     "diff": str(diff_krw), # 전일 대비

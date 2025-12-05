@@ -203,7 +203,7 @@ function Home() {
                                                 <span className={`market-badge ${item.market}`}>{item.market === 'domestic' ? '국내' : '해외'}</span>
                                                 <span className="stock-code">{item.market === 'overseas' ? item.symb : item.code}</span>
                                             </div>
-                                            <span className="stock-name">{item.name}</span>
+                                            <span className="home-stock-name">{item.name}</span>
                                         </div>
                                     </td>
                                     <td><div className="price-val">{formatPrice(item.price)}</div></td>

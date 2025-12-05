@@ -226,7 +226,7 @@
 }
 
 /* === [수정] 가격 폰트 확대 === */
-.current-price {
+.search-current-price {
     font-size: 15px; /* 13px -> 15px */
     font-weight: 600;
     color: var(--color-text-main);

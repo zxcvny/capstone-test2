@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom'; // useNavigate 제거 (window.location 사용으로 불필요)
+import { Link, useNavigate } from 'react-router-dom'; // useNavigate 제거 (window.location 사용으로 불필요)
 import { IoSearchOutline } from "react-icons/io5";
 import Logo from "./Logo";
 import { useAuth } from "../context/AuthContext";
@@ -7,7 +7,7 @@ import "../styles/Header.css";
 
 function Header() {
     const { user, logout } = useAuth();
-    // const navigate = useNavigate(); // 페이지 강제 새로고침을 위해 사용하지 않음
+    const navigate = useNavigate();
     
     const [keyword, setKeyword] = useState("");
     const [results, setResults] = useState([]);
@@ -106,27 +106,37 @@ function Header() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // [수정됨] 클릭 시 navigate 대신 window.location.href 사용
-    const handleStockClick = (market, code) => {
-        const routeMarket = market === "KR" ? "domestic" : "overseas";
-        
-        // React Router(navigate) 대신 브라우저 기본 이동 사용 -> 페이지 전체 새로고침 발생
-        window.location.href = `/stock/${routeMarket}/${code}`; 
-        
-        // 아래 상태 초기화는 페이지가 새로고침되므로 사실상 필요 없으나, 
-        // 혹시 모를 비동기 딜레이를 위해 남겨둡니다.
+    const handleStockClick = (market, code, name) => {
+        // 해외 시장 코드 리스트 (필요하면 더 추가 가능)
+        const overseasMarkets = ["NAS", "NYS", "AMEX", "NYSE", "NASDAQ"];
+
+        // 정확한 매핑
+        const routeMarket = overseasMarkets.includes(market)
+            ? "overseas"
+            : "domestic";
+
+        // 해외면 symb 사용, 국내면 code 사용
+        const routeId = code;
+
+        navigate(`/stock/${routeMarket}/${routeId}`, {
+            state: {
+                code: code,
+                symb: code,
+                name: name
+            }
+        });
+
         setKeyword("");
         setShowResults(false);
     };
 
     const handleKeyDown = (e) => {
-        // [수정됨] 한글 입력 중(조합 중)일 때 엔터키 이벤트를 무시하여 의도치 않은 이동 방지
         if (e.nativeEvent.isComposing) return;
 
         if (e.key === 'Enter') {
             if (results.length > 0) {
                 const firstItem = results[0];
-                handleStockClick(firstItem.market_code, firstItem.stock_code);
+                handleStockClick(firstItem.market_code, firstItem.stock_code, firstItem.display_name);
                 e.target.blur();
             }
         }
@@ -185,7 +195,7 @@ function Header() {
                                 results.map((stock, index) => (
                                     <li 
                                         key={`${stock.market_code}-${stock.stock_code}-${index}`} 
-                                        onClick={() => handleStockClick(stock.market_code, stock.stock_code)}
+                                        onClick={() => handleStockClick(stock.market_code, stock.stock_code, stock.display_name)}
                                     >
                                         <div className="search-result-item">
                                             <div className="result-left">
@@ -201,7 +211,7 @@ function Header() {
                                             </div>
                                             
                                             <div className="result-right">
-                                                <span className="current-price">{stock.current_price}</span>
+                                                <span className="search-current-price">{stock.current_price}</span>
                                                 <span className={`change-rate ${getRateClass(stock.change_rate)}`}>
                                                     {stock.change_rate}
                                                 </span>
