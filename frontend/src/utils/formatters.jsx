@@ -19,7 +19,7 @@ export const formatAmount = (num) => {
         return `${(val / 1_000_000_000_000).toFixed(2)}조`;
     }
     if (val >= 100_000_000) {
-        return `${(val / 100_000_000).toFixed(0)}억원`;
+        return `${(val / 100_000_000).toFixed(0)}억`;
     }
     return `${Math.floor(val).toLocaleString()}원`;
 };
