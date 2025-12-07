@@ -226,8 +226,8 @@
     position: relative;
 }
 
-.stat-box .label { font-size: 12px; color: var(--color-text-muted); }
-.stat-box .value { font-size: 14px; font-weight: 600; color: var(--color-text-main); white-space: nowrap; }
+.stat-box .label { font-size: 13px; color: var(--color-text-muted); }
+.stat-box .value { font-size: 16px; font-weight: 600; color: var(--color-text-main); white-space: nowrap; }
 
 /* === Column 2: Order Book === */
 .orderbook-card { height: 100%; min-height: 600px; display: flex; flex-direction: column; }

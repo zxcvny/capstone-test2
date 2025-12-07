@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 class StockSearchService:
     def __init__(self):
         self.stocks = []
+        self.stock_map = {}
         # 마스터 파일 경로 (backend/app/master)
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.master_dir = os.path.join(self.base_dir, "..", "..", "master")
@@ -27,6 +28,8 @@ class StockSearchService:
         
         # 3. NASDAQ (해외) 로드
         self._load_overseas_mst("NASMST.COD", "NAS")
+
+        self.stock_map = {stock['code']: stock['name'] for stock in self.stocks}
 
         logger.info(f"마스터 데이터 로딩 완료: 총 {len(self.stocks)}개 종목")
 
@@ -104,6 +107,10 @@ class StockSearchService:
                         continue
         except Exception as e:
             logger.error(f"{filename} 로드 실패: {e}")
+
+    def get_stock_name(self, code: str) -> str:
+        """종목 코드를 입력받아 종목명을 반환 (없으면 코드 반환)"""
+        return self.stock_map.get(code, code)
 
     def search_stocks(self, keyword: str, limit: int = 10) -> List[Dict]:
         """

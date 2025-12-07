@@ -68,6 +68,10 @@ class StockInfoService:
                     return None
                 
                 data = res_json["output"]
+
+                market_cap_eok = int(data.get("hts_avls") or 0)
+                market_cap_won = str(market_cap_eok * 100000000)
+
                 return {
                     "market": "domestic",
                     "market_name": data.get("rprs_mrkt_kor_name"), # 대표 시장 한글 명 (KOSPI200...)
@@ -78,7 +82,7 @@ class StockInfoService:
                     "amount": data.get("acml_tr_pbmn"), # 누적 거래 대금
                     "volume": data.get("acml_vol"), # 누적 거래량
                     "shares_outstanding": data.get("lstn_stcn"), # 상장 주수
-                    "market_cap": data.get("hts_avls"), # HTS 시가총액
+                    "market_cap": market_cap_won, # HTS 시가총액
                     "per": data.get("per"), "pbr": data.get("pbr"), "eps": data.get("eps"), "bps": data.get("bps"),
                     "vol_power": data.get("vol_tnrt") # 거래량 회전율
                 }

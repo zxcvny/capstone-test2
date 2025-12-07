@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from models.user_virtual import VirtualAccount, VirtualPortfolio, VirtualTradeLog
 from services.kis.stock_info import stock_info_service
+from services.kis.stock_search import stock_search_service
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ class VirtualInvestService:
         for p in portfolios:
             stock_info = await stock_info_service.get_stock_detail(p.market_type, p.stock_code)
             current_price = float(stock_info['price'].replace(',', '')) if stock_info else p.average_price
-
+            stock_name = stock_search_service.get_stock_name(p.stock_code)
             valuation = current_price * p.quantity
             invested = p.average_price * p.quantity
             profit = valuation - invested
@@ -162,7 +163,7 @@ class VirtualInvestService:
 
             response_list.append({
                 "stock_code": p.stock_code,
-                "stock_name": stock_info['name'] if stock_info and 'name' in stock_info else p.stock_code, # 이름 추가 권장
+                "stock_name": stock_name,
                 "market_type": p.market_type,
                 "quantity": p.quantity,
                 "average_price": p.average_price,
