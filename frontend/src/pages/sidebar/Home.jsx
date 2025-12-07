@@ -200,8 +200,8 @@ function Home() {
                                     <td className="col-name">
                                         <div className="stock-info">
                                             <div className="stock-meta">
-                                                <span className={`market-badge ${item.market}`}>{item.market === 'domestic' ? '국내' : '해외'}</span>
-                                                <span className="stock-code">{item.market === 'overseas' ? item.symb : item.code}</span>
+                                                <span className={`home-market-badge ${item.market}`}>{item.market === 'domestic' ? '국내' : '해외'}</span>
+                                                <span className="home-stock-code">{item.market === 'overseas' ? item.symb : item.code}</span>
                                             </div>
                                             <span className="home-stock-name">{item.name}</span>
                                         </div>
