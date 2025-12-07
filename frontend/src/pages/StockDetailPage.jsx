@@ -91,7 +91,9 @@ function StockDetailPage() {
             } catch (error) { console.error("Detail Fetch Error:", error); }
         };
         fetchStockDetail();
-        fetchAccountInfo();
+        if (localStorage.getItem('access_token')) {
+            fetchAccountInfo();
+        }
     }, [market, realCode, excd, chartPeriod]);
 
     // 계좌 및 보유 정보 조회

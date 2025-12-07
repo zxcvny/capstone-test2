@@ -54,9 +54,9 @@ export const formatHMS = (hms) => {
 export const renderRate = (rate) => {
     const val = Number(rate);
     if (val > 0) {
-        return <span className={`rate-cell ${getRateClass(val)}`}><FaCaretUp /> {val}%</span>;
+        return <span className={`rate-cell ${getRateClass(val)}`}><FaCaretUp /> {val.toFixed(2)}%</span>;
     } else if (val < 0) {
-        return <span className={`rate-cell ${getRateClass(val)}`}><FaCaretDown /> {Math.abs(val)}%</span>;
+        return <span className={`rate-cell ${getRateClass(val)}`}><FaCaretDown /> {Math.abs(val).toFixed(2)}%</span>;
     } else {
         return <span className={`rate-cell ${getRateClass(val)}`}><FaMinus style={{ fontSize: '10px' }} /> 0.00%</span>;
     }

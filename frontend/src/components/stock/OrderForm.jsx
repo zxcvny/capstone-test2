@@ -1,12 +1,17 @@
 // src/components/stock/OrderForm.jsx
 import { FaWallet, FaPlus, FaMinus } from "react-icons/fa";
+import { useNavigate } from "react-router-dom"; // 페이지 이동을 위한 훅
 import { formatNumber, formatAmount } from "../../utils/formatters";
+import { useAuth } from "../../context/AuthContext"; // 로그인 상태 확인을 위한 훅
 
 function OrderForm({ 
     orderType, setOrderType, orderPrice, setOrderPrice, 
     orderQuantity, setOrderQuantity, account, holdingQty, avgPrice, 
     currentPrice, handleOrder 
 }) {
+    const { user } = useAuth(); // 사용자 정보 가져오기
+    const navigate = useNavigate(); // 페이지 이동 함수
+
     // 내 보유 현황 계산
     const myTotalInvest = Math.floor(holdingQty * avgPrice);
     const myTotalEval = Math.floor(holdingQty * currentPrice);
@@ -17,9 +22,34 @@ function OrderForm({
     const availableBuyQty = account ? Math.floor(account.balance / (orderPrice || 1)) : 0; 
     const orderTotalAmount = orderPrice * orderQuantity;
 
+    // [추가] 버튼 텍스트 결정 함수
+    const getButtonText = () => {
+        if (!user) return "로그인이 필요합니다";
+        if (!account) return "계좌 만들러가기";
+        return orderType === 'buy' ? '현금 매수' : '현금 매도';
+    };
+
+    // [추가] 버튼 클릭 핸들러
+    const handleButtonClick = () => {
+        if (!user) {
+            if (window.confirm("로그인이 필요한 서비스입니다. 로그인 페이지로 이동하시겠습니까?")) {
+                navigate('/login');
+            }
+            return;
+        }
+        if (!account) {
+            if (window.confirm("매매를 하려면 모의투자 계좌가 필요합니다. 계좌 개설 페이지로 이동하시겠습니까?")) {
+                navigate('/myinvestlist');
+            }
+            return;
+        }
+        // 정상적인 경우 주문 처리
+        handleOrder();
+    };
+
     return (
         <div className="col-orderform">
-            {/* 1. 주문 폼 (위로 이동됨) */}
+            {/* 1. 주문 폼 */}
             <div className={`order-form-card ${orderType}`}>
                 <div className="order-tabs">
                     <button className={`tab-btn buy ${orderType === 'buy' ? 'active' : ''}`} onClick={() => setOrderType('buy')}>매수</button>
@@ -45,25 +75,36 @@ function OrderForm({
                     <div className="order-summary">
                         <div className="summary-row"><span>총 주문금액</span><span className="total-price">{formatAmount(orderTotalAmount)}</span></div>
                     </div>
-                    <button className={`btn-submit-order ${orderType}`} onClick={handleOrder}>
-                        {orderType === 'buy' ? '현금 매수' : '현금 매도'}
+                    
+                    {/* [수정] 조건부 텍스트 및 핸들러 적용 */}
+                    <button className={`btn-submit-order ${orderType}`} onClick={handleButtonClick}>
+                        {getButtonText()}
                     </button>
                 </div>
-                <div className="user-balance-info">
-                    {orderType === 'buy' ? (
-                        <><p>주문가능금액: <strong>{formatNumber(account?.balance || 0)}원</strong></p><p>매수가능수량: <strong>{formatNumber(availableBuyQty)}주</strong></p></>
-                    ) : (
-                        <><p>매도가능수량: <strong>{formatNumber(holdingQty)}주</strong></p><p>예상매도금액: <strong>{formatAmount(orderTotalAmount)}</strong></p></>
-                    )}
-                </div>
+                
+                {/* 하단 잔고 정보 (로그인 및 계좌가 있을 때만 표시) */}
+                {account && (
+                    <div className="user-balance-info">
+                        {orderType === 'buy' ? (
+                            <><p>주문가능금액: <strong>{formatNumber(account.balance)}원</strong></p><p>매수가능수량: <strong>{formatNumber(availableBuyQty)}주</strong></p></>
+                        ) : (
+                            <><p>매도가능수량: <strong>{formatNumber(holdingQty)}주</strong></p><p>예상매도금액: <strong>{formatAmount(orderTotalAmount)}</strong></p></>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* 2. 내 보유 현황 (아래로 이동됨) */}
+            {/* 2. 내 보유 현황 */}
             <div className="my-position-card">
                 <div className="card-header-sm">
                     <span className="card-title"><FaWallet /> 내 보유 현황</span>
                 </div>
-                {holdingQty > 0 ? (
+                {/* 로그인 안했거나 계좌가 없으면 안내 메시지 */}
+                {!user || !account ? (
+                     <div className="empty-pos-message">
+                        {user ? "계좌 개설 후 이용해주세요." : "로그인이 필요합니다."}
+                     </div>
+                ) : holdingQty > 0 ? (
                     <div className="my-pos-body">
                         <div className="pos-row"><span>평단가</span><span className="val">{formatNumber(Math.floor(avgPrice))}원</span></div>
                         <div className="pos-row"><span>보유수량</span><span className="val">{formatNumber(holdingQty)}주</span></div>
@@ -80,7 +121,6 @@ function OrderForm({
                         </div>
                     </div>
                 ) : (
-                    // 보유하지 않은 경우 안내 메시지
                     <div className="empty-pos-message">
                         보유하고 있는 종목이 아닙니다.
                     </div>

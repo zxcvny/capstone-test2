@@ -197,3 +197,24 @@
     color: var(--color-text-muted);
     font-size: 14px;
 }
+
+.text-up {
+    color: #ff4d4d !important;
+}
+
+.text-down {
+    color: #4d88ff !important;
+}
+
+.text-flat {
+    color: var(--color-text-muted) !important;
+}
+
+/* [추가] 테이블 내 rate-cell 스타일 (renderRate 컴포넌트용) */
+.rate-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* 우측 정렬 */
+    gap: 4px;
+    font-weight: 500;
+}
