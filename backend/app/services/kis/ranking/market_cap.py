@@ -35,7 +35,7 @@ class MarketCapRankingService(RankingBaseService):
             amount = price * volume
             
             # 시가총액 단위: 억 원 -> 원으로 변환
-            mkt_cap_krw = float(item.get('stck_avls', 0)) * 100000000
+            mkt_cap_krw = float(item.get('stck_avls', 0)) * 100_000_000
             
             normalized.append({
                 "code": item.get('mksc_shrn_iscd'),
@@ -72,7 +72,7 @@ class MarketCapRankingService(RankingBaseService):
             
             # 해외 시가총액 단위: 백만 달러 -> 원으로 환산
             mkt_cap_usd_million = float(item.get('tomv', 0))
-            mkt_cap_krw = mkt_cap_usd_million * 1000000 * exchange_rate
+            mkt_cap_krw = mkt_cap_usd_million * exchange_rate
 
             normalized.append({
                 "code": item.get('rsym'),
