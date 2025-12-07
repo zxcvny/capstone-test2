@@ -26,7 +26,7 @@ function MyInvestList() {
     // 초기 로딩
     useEffect(() => {
         if (user) {
-            fetchMyAccount(); // 계좌 정보 먼저 확인
+            fetchInitialData(); // 함수명 변경
         }
         return () => {
             if (ws.current) ws.current.close();
@@ -43,32 +43,32 @@ function MyInvestList() {
     }, [portfolio]);
 
     // 계좌 및 포트폴리오 조회
-    const fetchMyAccount = async () => {
+    const fetchInitialData = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const response = await axios.get('/invest/virtual/account');
-            setAccount(response.data);
+            const accountPromise = axios.get('/invest/virtual/account');
+            const portfolioPromise = axios.get('/invest/virtual/portfolio');
+
+            const accountRes = await accountPromise;
+            
+            setAccount(accountRes.data);
             setHasAccount(true);
-            await fetchPortfolio(); // 계좌가 있으면 포트폴리오 조회
+
+            const portfolioRes = await portfolioPromise;
+            
+            setPortfolio(portfolioRes.data);
+            setRealtimePortfolio(portfolioRes.data);
+
         } catch (error) {
-            // 계좌가 없는 경우
             if (error.response && error.response.status === 404) {
                 setHasAccount(false);
+                setPortfolio([]);
+                setRealtimePortfolio([]);
             } else {
-                console.log("계좌 조회 오류:", error);
+                console.error("데이터 조회 오류:", error);
             }
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchPortfolio = async () => {
-        try {
-            const response = await axios.get('/invest/virtual/portfolio');
-            setPortfolio(response.data);
-            setRealtimePortfolio(response.data);
-        } catch (error) {
-            console.log("포트폴리오 조회 실패:", error);
         }
     };
 
