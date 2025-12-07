@@ -26,7 +26,7 @@ function MyInvestList() {
     // 초기 로딩
     useEffect(() => {
         if (user) {
-            fetchInitialData(); // 함수명 변경
+            fetchInitialData();
         }
         return () => {
             if (ws.current) ws.current.close();
@@ -82,7 +82,7 @@ function MyInvestList() {
                 code: item.stock_code,
                 market: item.market_type,
                 type: "tick",
-                excd: item.market_type === 'overseas' ? 'NAS' : '' // 해외주식 거래소 코드 처리 필요시
+                excd: item.market_type === 'overseas' ? 'NAS' : ''
             }));
             if(items.length > 0) {
                 ws.current.send(JSON.stringify({ items }));
@@ -126,14 +126,12 @@ function MyInvestList() {
         });
     };
 
-    // 3. 계좌 개설 처리 (모달에서 호출)
     const handleProcessCreateAccount = async () => {
         try {
             const res = await axios.post('/invest/virtual/account');
-            setIsCreateModalOpen(false); // 모달 닫기
+            setIsCreateModalOpen(false);
             alert("🚀 계좌가 성공적으로 개설되었습니다!\n1,000만원이 지급되었습니다.");
             
-            // 상태 갱신
             setAccount(res.data);
             setHasAccount(true);
             setPortfolio([]);
@@ -159,7 +157,6 @@ function MyInvestList() {
     if (!user) return <LoginRequired message="내 투자 내역을 확인하려면 로그인이 필요합니다." />;
     if (loading) return <div className="loading-container"><div className="loading-spinner"></div><p className="loading-text">투자 정보를 불러오는 중입니다...</p></div>;
 
-    // 계좌가 없을 때
     if (!hasAccount) {
         return (
             <div className="invest-empty-container">
@@ -181,7 +178,6 @@ function MyInvestList() {
                     </button>
                 </div>
                 
-                {/* 약관 동의 및 계좌 개설 모달 */}
                 <AccountCreateModal 
                     isOpen={isCreateModalOpen} 
                     onClose={() => setIsCreateModalOpen(false)} 
@@ -197,54 +193,52 @@ function MyInvestList() {
     const totalRate = totalInvest > 0 ? (totalProfit / totalInvest) * 100 : 0;
 
     return (
-        <div className="home-container">
-             <div className="home-intro" style={{ marginTop: '20px' }}>
+        <div className="my-invest-container">
+             <div className="my-invest-intro">
                 <h3 className="intro-title">📉 내 투자 현황</h3>
             </div>
 
-            <div className="dashboard-stats-card" style={{ marginBottom: '20px' }}>
-                <div className="stats-row basic" style={{ gridTemplateColumns: 'repeat(5, 1fr)'}}>
-                    <div className="stat-box">
+            <div className="invest-dashboard-card">
+                <div className="invest-stats-row">
+                    <div className="invest-stat-box">
                         <span className="label">총 평가 손익</span>
                         <span className={`value ${getRateClass(totalProfit)}`}>
                             {totalProfit > 0 ? '+' : ''}{formatNumber(totalProfit)}원
                         </span>
                     </div>
-                    <div className="stat-box">
+                    <div className="invest-stat-box">
                         <span className="label">총 수익률</span>
                         <span className={`value ${getRateClass(totalRate)}`}>
                             {totalRate.toFixed(2)}%
                         </span>
                     </div>
                     
-                    {/* [추가] 총 매수 금액 (투자 원금) 표시 */}
-                    <div className="stat-box">
+                    <div className="invest-stat-box">
                         <span className="label">총 매수 금액</span>
                         <span className="value">{formatNumber(totalInvest)}원</span>
                     </div>
 
-                    <div className="stat-box">
+                    <div className="invest-stat-box">
                         <span className="label">총 평가 금액</span>
                         <span className="value">{formatNumber(totalStockEval)}원</span>
                     </div>
-                     <div className="stat-box">
+                     <div className="invest-stat-box">
                         <span className="label">주문 가능 금액</span>
                         <span className="value">{formatNumber(account?.balance)}원</span>
                     </div>
                 </div>
             </div>
 
-            <div className="table-container">
-                <table className="ranking-table">
+            <div className="invest-table-container">
+                <table className="invest-table">
                     <thead>
                         <tr>
-                            <th>종목명</th>
+                            <th>종목 정보</th>
                             <th>보유수량</th>
                             <th>평단가</th>
                             <th>현재가</th>
                             <th>평가손익</th>
                             <th>수익률</th>
-                            {/* [추가] 매수금액 헤더 */}
                             <th>매수금액</th>
                             <th>평가금액</th>
                         </tr>
@@ -252,18 +246,19 @@ function MyInvestList() {
                     <tbody>
                         {realtimePortfolio.length > 0 ? (
                             realtimePortfolio.map((item) => (
-                                <tr key={item.stock_code} onClick={() => handleRowClick(item)} style={{ cursor: 'pointer' }}>
-                                    <td className="col-name" style={{ textAlign: 'left' }}>
-                                        <div className="stock-info">
-                                            <span className={`home-market-badge ${item.market_type === 'overseas' ? 'overseas' : 'domestic'}`}>
+                                <tr key={item.stock_code} onClick={() => handleRowClick(item)} className="invest-row">
+                                    <td className="invest-col-name">
+                                        <div className="invest-stock-info">
+                                            <span className={`invest-market-badge ${item.market_type === 'overseas' ? 'overseas' : 'domestic'}`}>
                                                 {item.market_type === 'overseas' ? '해외' : '국내'}
                                             </span>
-                                            <span className="home-stock-name">{item.stock_name}</span>
+                                            <span className="invest-stock-name">{item.stock_name}</span>
+                                            <span className="invest-stock-code">{item.stock_code}</span>
                                         </div>
                                     </td>
                                     <td>{formatNumber(item.quantity)}주</td>
                                     <td>{formatNumber(Math.floor(item.average_price))}원</td>
-                                    <td className="price-val">{formatNumber(item.current_price || item.average_price)}원</td>
+                                    <td className="invest-price-val">{formatNumber(item.current_price || item.average_price)}원</td>
                                     
                                     <td className={getRateClass(item.profit_loss)}>
                                         {formatNumber(item.profit_loss)}원
@@ -273,17 +268,14 @@ function MyInvestList() {
                                         {renderRate(item.profit_rate)}
                                     </td>
 
-                                    {/* [추가] 종목별 매수금액 (평단가 * 수량) */}
                                     <td>{formatAmount(item.average_price * item.quantity)}</td>
-                                    
                                     <td>{formatAmount((item.current_price || item.average_price) * item.quantity)}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                {/* [수정] 컬럼 수 증가에 맞춰 colSpan 7 -> 8 */}
                                 <td colSpan="8">
-                                    <div className="empty-state">
+                                    <div className="invest-empty-state">
                                         보유 중인 주식이 없습니다.<br/>
                                         관심 종목을 매수해보세요!
                                     </div>
