@@ -18,7 +18,7 @@ function StockDetailPage() {
     const location = useLocation();
 
     // AI Hook
-    const { aiLoading, aiResult, isModalOpen, handleAiPredict, closeModal } = useAI();
+     const { aiLoading, aiResult, isModalOpen, fetchAiPrediction, openModal, closeModal } = useAI();
 
     // 기본 정보 파싱
     const realCode = market === 'overseas' ? (location.state?.symb || stockId) : (location.state?.code || stockId);
@@ -46,6 +46,12 @@ function StockDetailPage() {
     const ws = useRef(null);
 
     useEffect(() => { window.scrollTo(0, 0); }, []);
+
+    useEffect(() => {
+        if (realCode && market) {
+            fetchAiPrediction(market, realCode);
+        }
+    }, [realCode, market, fetchAiPrediction]);
 
     // 초기 데이터 로딩
     useEffect(() => {
@@ -199,7 +205,9 @@ function StockDetailPage() {
                 currentDiff={currentDiff}
                 currentRate={currentRate}
                 rateClass={rateClass}
-                onAiClick={() => handleAiPredict({ market, code: realCode, symb: realCode })}
+                aiLoading={aiLoading}
+                aiResult={aiResult}
+                onAiClick={openModal}
             />
 
             <div className="detail-grid-3col">

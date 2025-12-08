@@ -1,20 +1,34 @@
-from fastapi import APIRouter, Query
-from ai.prediction import ai_predictor
+from fastapi import APIRouter, HTTPException
+# 방금 만든 인스턴스들을 가져옵니다
+from ai.prediction import domestic_predictor, overseas_predictor 
 
-router = APIRouter(prefix="/stocks/ai", tags=["AI Prediction"])
+# [수정] prefix를 추가하여 URL을 "/stocks/ai"로 시작하게 설정
+router = APIRouter(
+    prefix="/stocks/ai",
+    tags=["Stock AI"]
+)
 
 @router.get("/predict")
-async def predict_stock(
-    market: str = Query(..., description="KR, NAS, NYS"),
-    code: str = Query(..., description="종목코드 (005930, AAPL)")
-):
+async def predict_stock(market: str, code: str):
     """
-    특정 종목에 대한 AI 매수/매도 시그널 분석 결과 반환
+    특정 종목의 AI 예측 결과를 반환
+    (최종 URL: /stocks/ai/predict)
     """
-    # 해외주식의 경우 시장 코드(NAS 등) 처리가 필요하다면 여기서 처리
-    # prediction.py는 "KR" 또는 "NAS"(해외통칭)로 모델을 로드하므로 매핑 필요
-    
-    model_market = "KR" if market == "domestic" or market == "KR" else "NAS"
-    
-    result = await ai_predictor.predict_buy_signal(model_market, code)
+    result = None
+
+    if market == "KR":
+        # domestic 예측기 사용
+        result = await domestic_predictor.predict_next_day(code)
+        
+    elif market == "NAS":
+        # overseas 예측기 사용
+        result = await overseas_predictor.predict_next_day(code)
+        
+    else:
+        raise HTTPException(status_code=400, detail="지원하지 않는 마켓입니다 (KR/NAS)")
+
+    # 결과에 에러 메시지가 포함된 경우
+    if result and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
     return result
