@@ -177,8 +177,20 @@ function MyFavorite() {
     };
 
     const handleRowClick = (item) => {
-        const routeId = item.market === 'overseas' ? item.symb : item.code;
-        navigate(`/stock/${item.market}/${routeId}`, { state: { code: item.code, symb: item.symb, name: item.name, price: item.price, rate: item.rate } });
+        // 관심종목 DB에는 해외주식 심볼이 'code' 필드에 저장되어 있음
+        // 따라서 item.symb가 없더라도 item.code를 사용하면 됨
+        const routeId = item.code; 
+        
+        navigate(`/stock/${item.market}/${routeId}`, { 
+            state: { 
+                code: item.code, 
+                // 해외주식인 경우 item.code가 심볼임. item.symb가 있으면 사용하고 없으면 code 사용
+                symb: item.market === 'overseas' ? (item.symb || item.code) : item.symb,
+                name: item.name, 
+                price: item.price, 
+                rate: item.rate 
+            } 
+        });
     };
 
     if (!user) return <LoginRequired />;

@@ -1,50 +1,52 @@
-import { FaTimes } from "react-icons/fa";
-import '../../styles/Home.css'; // 스타일 파일 확인
+import { FaTimes, FaFolder } from "react-icons/fa";
+import '../../styles/AIModal.css'; // 모달 스타일 사용
 
-function GroupCreateModal({ isOpen, setIsCreateGroupModalOpen, newGroupName, setNewGroupName, handleCreateGroup }) {
+function GroupSelectModal({ isOpen, setIsGroupModalOpen, myGroups, targetStock, addToGroup }) {
     if (!isOpen) return null;
-    
-    // 모달 닫기 핸들러
-    const handleClose = () => {
-        setIsCreateGroupModalOpen(false);
-        setNewGroupName(""); // 입력창 초기화 (선택 사항)
-    };
 
     return (
-        <div className="ai-modal-overlay" onClick={handleClose}>
-            <div className="ai-modal-content group-select-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="ai-close-btn" onClick={handleClose}>
+        <div className="ai-modal-overlay" onClick={setIsGroupModalOpen}>
+            <div className="ai-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                <button className="ai-close-btn" onClick={setIsGroupModalOpen}>
                     <FaTimes />
                 </button>
                 
-                <h3 className="modal-title">새 그룹 만들기</h3>
-                <p className="modal-desc">
-                    관심 종목을 분류할<br />새로운 그룹의 이름을 입력해주세요.
+                <h3 className="modal-title" style={{ marginBottom: '10px' }}>관심 그룹 선택</h3>
+                <p className="modal-desc" style={{ marginBottom: '20px' }}>
+                    <span style={{ fontWeight: 'bold', color: '#fff' }}>{targetStock?.name}</span>을(를)<br/>
+                    어느 그룹에 추가하시겠습니까?
                 </p>
-                
-                <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="예: 반도체, 2차전지, 배당주" 
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
-                    autoFocus
-                />
-                
-                <div className="modal-btn-group">
-                    {/* 취소 버튼 추가 */}
-                    <button className="modal-cancel-btn" onClick={handleClose}>
-                        취소
-                    </button>
-                    {/* 생성 버튼 */}
-                    <button className="modal-confirm-btn" onClick={handleCreateGroup}>
-                        생성하기
-                    </button>
+
+                <div className="group-select-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+                    {myGroups.map((group) => (
+                        <button 
+                            key={group.group_id}
+                            className="group-select-item"
+                            onClick={() => addToGroup(group.group_id)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                width: '100%',
+                                padding: '15px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                color: 'var(--color-text-primary)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                        >
+                            <FaFolder style={{ color: '#ffd700' }} />
+                            <span style={{ fontSize: '15px' }}>{group.name}</span>
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
-    )
+    );
 }
 
-export default GroupCreateModal;
+export default GroupSelectModal;
