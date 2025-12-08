@@ -263,7 +263,7 @@ class KisWebSocketManager:
                                     except ValueError:
                                         pass
                                 
-                                elif tr_id == "HDFSASP0" and len(values) > 70:
+                                elif tr_id == "HDFSASP0" and len(values) > 66:
                                     parsed = {
                                         "type": "ask",
                                         "code": values[1],   # SYMB (AAPL, TSLA 등)
