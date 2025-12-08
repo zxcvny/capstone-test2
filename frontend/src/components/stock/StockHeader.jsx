@@ -1,11 +1,37 @@
-import { FaRobot, FaChevronRight, FaChartLine } from "react-icons/fa";
+import { FaRobot, FaChevronRight, FaChartLine, FaHeart, FaRegHeart  } from "react-icons/fa"; // [추가] 별 아이콘 import
 import { formatNumber } from "../../utils/formatters";
+import { useFavorites } from "../../hooks/useFavorites"; // [추가] 훅 import
+import GroupSelectModal from "../modals/GroupSelectModal"; // [추가] 모달 import
 
 function StockHeader({ 
     market, stockName, realCode, 
     currentPrice, currentDiff, currentRate, rateClass, 
     aiLoading, aiResult, onAiClick 
 }) {
+    // [추가] 관심종목 훅 사용
+    const { 
+        favorites, 
+        toggleFavorite, 
+        isGroupModalOpen, 
+        setIsGroupModalOpen, 
+        myGroups, 
+        targetStock, 
+        addToGroup 
+    } = useFavorites();
+
+    // [추가] 현재 종목이 관심종목인지 확인
+    const isFavorite = favorites.has(realCode);
+
+    // [추가] 즐겨찾기 버튼 클릭 핸들러
+    const handleFavoriteClick = (e) => {
+        toggleFavorite(e, {
+            market,
+            code: realCode,
+            symb: realCode, // 해외주식의 경우를 위해 symb에도 할당
+            name: stockName
+        });
+    };
+
     // 신호에 따른 스타일 정의
     const getAiSignalStyle = (signal) => {
         if (!signal) return {};
@@ -44,6 +70,28 @@ function StockHeader({
                         {market === 'domestic' ? '국내' : '해외'}
                     </span>
                     <h1 className="stock-name" style={{ margin: 0 }}>{stockName}</h1>
+                    
+                    {/* [추가] 관심종목 별 아이콘 버튼 */}
+                    <button 
+                        onClick={handleFavoriteClick}
+                        style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: 'pointer', 
+                            padding: '4px', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            outline: 'none'
+                        }}
+                        title={isFavorite ? "관심종목 해제" : "관심종목 추가"}
+                    >
+                        {isFavorite ? (
+                            <FaHeart size={22} color="#ff4d4d" /> 
+                        ) : (
+                            <FaRegHeart size={22} color="#ccc" /> 
+                        )}
+                    </button>
+
                     <span className="stock-code">{realCode}</span>
                 </div>
 
@@ -62,7 +110,7 @@ function StockHeader({
                 </div>
             </div>
 
-            {/* [그룹화] 오른쪽 영역: AI 분석 카드 (부모의 alignItems: center 덕분에 자동으로 수직 중앙 정렬됨) */}
+            {/* [그룹화] 오른쪽 영역: AI 분석 카드 */}
             <div className="ai-status-wrapper">
                 {(aiResult || aiLoading) ? (
                     <div 
@@ -73,7 +121,7 @@ function StockHeader({
                             display: 'flex',
                             alignItems: 'center',
                             gap: '12px',
-                            padding: '10px 20px', // 크기감을 위해 패딩 약간 증가
+                            padding: '10px 20px', 
                             borderRadius: '16px',
                             background: aiLoading ? '#fafafa' : style.bg,
                             border: `1px solid ${aiLoading ? '#eee' : style.border}`,
@@ -90,7 +138,7 @@ function StockHeader({
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
-                                width: '40px', // 아이콘 크기 약간 증가
+                                width: '40px', 
                                 height: '40px', 
                                 borderRadius: '50%', 
                                 backgroundColor: 'rgba(255,255,255,0.9)',
@@ -134,6 +182,15 @@ function StockHeader({
                     </button>
                 )}
             </div>
+
+            {/* [추가] 관심종목 그룹 선택 모달 */}
+            <GroupSelectModal 
+                isOpen={isGroupModalOpen}
+                setIsGroupModalOpen={() => setIsGroupModalOpen(false)} // 닫기 함수 전달
+                myGroups={myGroups}
+                targetStock={targetStock}
+                addToGroup={addToGroup}
+            />
         </div>
     );
 }
