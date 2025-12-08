@@ -17,7 +17,7 @@ export function useAI() {
             const response = await axios.get(`/stocks/ai/predict`, { params: { market: market, code: item.code } });
             setAiResult(response.data);
         } catch (error) { 
-            setAiResult({ error: "분석에 실패했습니다." }); 
+            setAiResult({ error: "차트 데이터가 부족하여 분석할 수 없습니다." }); 
         } finally { 
             setAiLoading(false); 
         }
