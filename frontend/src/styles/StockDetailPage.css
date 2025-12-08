@@ -252,80 +252,213 @@
 .stat-box .label { font-size: 13px; color: var(--color-text-muted); }
 .stat-box .value { font-size: 16px; font-weight: 600; color: var(--color-text-main); white-space: nowrap; }
 
-/* === Column 2: Order Book === */
-.orderbook-card { height: 100%; min-height: 600px; display: flex; flex-direction: column; }
-.strength-badge { font-size: 13px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); }
-.strength-badge.up { color: #ff4d4d; }
-.strength-badge.down { color: #4d88ff; }
-.ob-list { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-.ob-item { 
-    display: grid; 
-    grid-template-columns: 1fr 1.2fr 1fr;
-    height: 38px; 
-    align-items: center; 
-    font-size: 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.02);
+/* === Column 2: Order Book (Redesigned) === */
+.orderbook-card {
+    height: 100%;
+    /* 최소 높이 확보 */
+    min-height: 640px; 
+    display: flex;
+    flex-direction: column;
+    background-color: #1e222d; /* 차트 배경과 통일감 */
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
 }
-.ob-item.ask { background-color: rgba(77, 136, 255, 0.06); }
-.ob-item.bid { background-color: rgba(255, 77, 77, 0.06); }
 
-.ob-left, .ob-right {
+/* --- Header --- */
+.ob-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.ob-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.strength-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.strength-display .value {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Roboto Mono', monospace;
+}
+.strength-display .value.up { color: #ff4d4d; }
+.strength-display .value.down { color: #4d88ff; }
+
+.strength-bar-bg {
+    width: 60px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.strength-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+.strength-bar-fill.up { background-color: #ff4d4d; }
+.strength-bar-fill.down { background-color: #4d88ff; }
+
+/* --- List Container --- */
+.ob-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    /* 스크롤바 숨김 (깔끔하게) */
+    scrollbar-width: none; 
+}
+.ob-list-container::-webkit-scrollbar { display: none; }
+
+/* --- Row Styles --- */
+.ob-row {
+    display: grid;
+    /* [매도잔량 35%] [호가 30%] [매수잔량 35%] */
+    grid-template-columns: 1.2fr 1fr 1.2fr; 
+    height: 30px; /* HTS처럼 촘촘하게 */
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    font-size: 13px;
     position: relative;
+}
+
+/* 배경색 구분 */
+.ob-row.ask { background-color: rgba(66, 165, 245, 0.04); }
+.ob-row.bid { background-color: rgba(239, 83, 80, 0.04); }
+
+.ob-row:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Columns */
+.ob-col {
     height: 100%;
     display: flex;
     align-items: center;
     padding: 0 8px;
+    position: relative;
     z-index: 1;
+    font-family: 'Roboto Mono', monospace; /* 숫자 정렬용 폰트 */
 }
 
-.ob-left { justify-content: flex-end; }
-.ob-right { justify-content: flex-start; }
-
-.ob-vol-text {
-    z-index: 2;
-    font-size: 12px;
-    color: var(--color-text-main);
-    font-weight: 500;
-}
-
-.ob-center {
-    display: flex;
-    align-items: center;
+/* 가격 컬럼 */
+.ob-col.price {
     justify-content: center;
     font-weight: 700;
-    font-size: 15px;
-    height: 100%;
-    border-left: 1px solid rgba(255,255,255,0.03);
-    border-right: 1px solid rgba(255,255,255,0.03);
+    font-size: 14px;
+    border-left: 1px solid rgba(255,255,255,0.05);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    color: var(--color-text-main);
+    background-color: rgba(255,255,255,0.01); /* 가격 부분만 살짝 다르게 */
+}
+/* 매도 호가 텍스트는 파란색 계열, 매수 호가는 빨간색 계열? 
+   보통은 전일대비 색상이지만, 여기선 영역색에 맞춰 통일감 부여 */
+.ob-row.ask .ob-col.price { color: #4d88ff; } 
+.ob-row.bid .ob-col.price { color: #ff4d4d; }
+
+/* 잔량 컬럼 */
+.ob-col.vol {
+    font-size: 12px;
     color: var(--color-text-main);
 }
-.ob-item.ask .ob-center { color: #4d88ff; }
-.ob-item.bid .ob-center { color: #ff4d4d; }
-.ob-price { font-weight: 600; font-size: 14px; z-index: 1; }
-.bar { position: absolute; top: 4px; bottom: 4px; opacity: 0.15; z-index: 0; }
+.ob-col.vol.ask { justify-content: flex-end; } /* 매도잔량 우측 정렬 */
+.ob-col.vol.bid { justify-content: flex-start; } /* 매수잔량 좌측 정렬 */
 
-.ask-bar { 
-    right: 0; 
-    background-color: #4d88ff; 
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
+/* 잔량 그래프 바 */
+.vol-bar {
+    position: absolute;
+    top: 4px; bottom: 4px;
+    opacity: 0.15;
+    z-index: -1;
+    transition: width 0.3s ease;
+}
+.vol-bar.ask { right: 0; background-color: #4d88ff; border-radius: 2px 0 0 2px; }
+.vol-bar.bid { left: 0; background-color: #ff4d4d; border-radius: 0 2px 2px 0; }
+
+.vol-text {
+    position: relative;
+    z-index: 2;
+    opacity: 0.9;
 }
 
-.bid-bar { 
-    left: 0; 
-    background-color: #ff4d4d; 
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
+/* --- Current Price Row (Center) --- */
+.ob-current-row {
+    padding: 6px 0;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.ob-current-line { 
-    text-align: center; 
-    padding: 8px 0; 
-    border-top: 1px solid var(--color-border); 
-    border-bottom: 1px solid var(--color-border); 
-    font-weight: 800; 
-    font-size: 18px; 
-    background-color: rgba(255,255,255,0.03);
+.current-price-badge {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 16px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.current-price-badge.text-up { color: #ff4d4d; border-color: rgba(255, 77, 77, 0.3); }
+.current-price-badge.text-down { color: #4d88ff; border-color: rgba(77, 136, 255, 0.3); }
+
+.current-rate {
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+/* --- Footer (Total Volume) --- */
+.ob-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--color-border);
+    background-color: rgba(0,0,0,0.2);
+}
+
+.total-vol-box {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.total-vol-box.ask { 
+    background-color: rgba(66, 165, 245, 0.08); 
+    border-right: 1px solid var(--color-border);
+}
+.total-vol-box.bid { 
+    background-color: rgba(239, 83, 80, 0.08); 
+}
+
+.total-vol-box .label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.total-vol-box .value {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--color-text-main);
 }
 
 /* === Column 3: Order Form === */
