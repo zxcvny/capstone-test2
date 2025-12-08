@@ -87,14 +87,14 @@ class AiPredictor:
         expected_return = ((predicted_price - current_price) / current_price) * 100
         
         # --- 추가 정보 생성 ---
-        signal = "HOLD"
+        signal = "관망"
         desc_text = "현재 추세가 불확실하여 관망을 추천합니다."
         
         if expected_return > 3.0: 
-            signal = "BUY"
+            signal = "매수"
             desc_text = "상승 추세가 예측됩니다. 매수 기회로 보입니다."
         elif expected_return < -2.0: 
-            signal = "SELL"
+            signal = "매도"
             desc_text = "하락 위험이 있습니다. 매도를 고려하세요."
 
         # 손절가 (단순 -3% 룰)
