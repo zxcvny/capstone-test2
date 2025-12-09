@@ -167,6 +167,7 @@ class KisWebSocketManager:
                                         "rate": values[5],
                                         "volume": values[13],
                                         "amount": values[14],
+                                        "vol": values[12],
                                         "date": values[33],
                                         "open": values[7],
                                         "high": values[8],
